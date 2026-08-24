@@ -30,7 +30,9 @@ public class PublicPaymentController {
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<PaymentResponse>> verifyPayment(@RequestBody Map<String, Object> body) {
         String orderIdStr = (String) body.get("orderId");
-        String txId = (String) body.get("transactionId");
+        String razorpayPaymentId = (String) body.get("razorpayPaymentId");
+        String razorpayOrderId = (String) body.get("razorpayOrderId");
+        String razorpaySignature = (String) body.get("razorpaySignature");
         Boolean successObj = (Boolean) body.get("success");
         boolean success = successObj != null ? successObj : true;
 
@@ -39,7 +41,7 @@ public class PublicPaymentController {
         }
 
         UUID orderId = UUID.fromString(orderIdStr);
-        PaymentResponse response = paymentService.verifyPayment(orderId, txId, success);
+        PaymentResponse response = paymentService.verifyPayment(orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature, success);
         return ResponseEntity.ok(ApiResponse.success("Payment verified", response));
     }
 }

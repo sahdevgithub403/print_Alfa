@@ -11,12 +11,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import com.razorpay.Utils;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PrintOrderRepository printOrderRepository;
+
+    @Value("${razorpay.key-secret}")
+    private String razorpayKeySecret;
 
     public PaymentService(PaymentRepository paymentRepository, PrintOrderRepository printOrderRepository) {
         this.paymentRepository = paymentRepository;
@@ -47,18 +53,43 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResponse verifyPayment(UUID orderId, String transactionId, boolean success) {
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Payment record not found for order"));
+    public PaymentResponse verifyPayment(UUID orderId, String razorpayPaymentId, String razorpayOrderId, String razorpaySignature, boolean success) {
+        PrintOrder order = printOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
-        PrintOrder order = payment.getOrder();
+        Payment payment = paymentRepository.findByOrderId(orderId).orElseGet(() -> {
+            Payment p = new Payment();
+            p.setOrder(order);
+            p.setAmount(order.getTotalPrice());
+            p.setPaymentMethod(PaymentMethod.ONLINE);
+            p.setStatus(PaymentStatus.PENDING);
+            return p;
+        });
 
         if (success) {
-            payment.setStatus(PaymentStatus.PAID);
-            if (transactionId != null && !transactionId.isEmpty()) {
-                payment.setTransactionId(transactionId);
+            try {
+                JSONObject options = new JSONObject();
+                options.put("razorpay_order_id", razorpayOrderId);
+                options.put("razorpay_payment_id", razorpayPaymentId);
+                options.put("razorpay_signature", razorpaySignature);
+
+                boolean status = Utils.verifyPaymentSignature(options, razorpayKeySecret);
+
+                if (status) {
+                    payment.setStatus(PaymentStatus.PAID);
+                    payment.setTransactionId(razorpayPaymentId);
+                    
+                    order.setPaymentStatus(PaymentStatus.PAID);
+                    order.setRazorpayPaymentId(razorpayPaymentId);
+                    order.setRazorpaySignature(razorpaySignature);
+                } else {
+                    payment.setStatus(PaymentStatus.FAILED);
+                    order.setPaymentStatus(PaymentStatus.FAILED);
+                }
+            } catch (Exception e) {
+                payment.setStatus(PaymentStatus.FAILED);
+                order.setPaymentStatus(PaymentStatus.FAILED);
             }
-            order.setPaymentStatus(PaymentStatus.PAID);
         } else {
             payment.setStatus(PaymentStatus.FAILED);
             order.setPaymentStatus(PaymentStatus.FAILED);

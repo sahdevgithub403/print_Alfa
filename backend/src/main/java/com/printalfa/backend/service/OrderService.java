@@ -16,6 +16,12 @@ import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 public class OrderService {
 
@@ -26,6 +32,12 @@ public class OrderService {
     private final PricingEngineService pricingEngineService;
     private final PrintJobRepository printJobRepository;
     private final WebSocketService webSocketService;
+
+    @Value("${razorpay.key-id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key-secret}")
+    private String razorpayKeySecret;
 
     public OrderService(PrintOrderRepository printOrderRepository,
                         OrderItemRepository orderItemRepository,
@@ -128,6 +140,22 @@ public class OrderService {
             order.setPageRange(first.getPageRange());
             order.setCopies(first.getCopies());
             order.setCalculatedPages(first.getCalculatedPages());
+        }
+
+        if (order.getPaymentMethod() == PaymentMethod.ONLINE) {
+            try {
+                RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+                JSONObject orderRequest = new JSONObject();
+                // amount in paise
+                orderRequest.put("amount", orderTotal.multiply(new BigDecimal("100")).intValue());
+                orderRequest.put("currency", "INR");
+                orderRequest.put("receipt", order.getOrderNumber());
+                
+                Order rzpOrder = razorpay.orders.create(orderRequest);
+                order.setRazorpayOrderId(rzpOrder.get("id"));
+            } catch (RazorpayException e) {
+                throw new RuntimeException("Failed to create Razorpay order", e);
+            }
         }
 
         PrintOrder savedOrder = printOrderRepository.save(order);
@@ -286,6 +314,8 @@ public class OrderService {
         dto.setCustomerPhone(order.getCustomerPhone());
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
+        dto.setRazorpayOrderId(order.getRazorpayOrderId());
+        dto.setRazorpayPaymentId(order.getRazorpayPaymentId());
 
         List<OrderItemDTO> itemDTOs = new ArrayList<>();
         if (order.getItems() != null && !order.getItems().isEmpty()) {

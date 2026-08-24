@@ -35,6 +35,10 @@ app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
 
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_dummy}
+  key-secret: ${RAZORPAY_KEY_SECRET:dummy_secret}
+
 ---
 spring:
   config:

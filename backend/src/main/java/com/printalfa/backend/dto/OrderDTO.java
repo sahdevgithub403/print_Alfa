@@ -23,6 +23,9 @@ public class OrderDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private String razorpayOrderId;
+    private String razorpayPaymentId;
+
     // Legacy fields for backwards compatibility with single-item clients
     private DocumentDTO document;
     private PrintType printType;
@@ -76,6 +79,12 @@ public class OrderDTO {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getRazorpayOrderId() { return razorpayOrderId; }
+    public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
+
+    public String getRazorpayPaymentId() { return razorpayPaymentId; }
+    public void setRazorpayPaymentId(String razorpayPaymentId) { this.razorpayPaymentId = razorpayPaymentId; }
 
     public DocumentDTO getDocument() { return document; }
     public void setDocument(DocumentDTO document) { this.document = document; }
