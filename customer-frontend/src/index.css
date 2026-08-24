@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    background-color: #F5F5F3;
+    color: #111111;
+    font-size: 16px;
+    line-height: 1.6;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 1.25;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    color: #111111;
+  }
+
+  h2 {
+    font-size: 26px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #111111;
+  }
+
+  h3 {
+    font-size: 20px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: #111111;
+  }
+
+  h4 {
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #111111;
+  }
+
+  p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+}
+
+/* Primary Button System (52px - 56px height, Solid Black) */
+.btn-primary {
+  @apply min-h-[52px] h-14 px-7 bg-[#0A0A0A] hover:bg-[#1F1F1F] text-white font-bold text-base rounded-xl transition-all flex items-center justify-center gap-3 shadow-none disabled:opacity-40 disabled:cursor-not-allowed select-none tracking-tight;
+}
+
+.btn-primary-sm {
+  @apply min-h-[44px] h-11 px-5 bg-[#0A0A0A] hover:bg-[#1F1F1F] text-white font-bold text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-none disabled:opacity-40 disabled:cursor-not-allowed select-none tracking-tight;
+}
+
+/* Secondary Button System (Transparent/Light with Subtle Border) */
+.btn-secondary {
+  @apply min-h-[52px] h-14 px-7 bg-white hover:bg-neutral-100 border border-[#D8D8D8] text-[#111111] font-bold text-base rounded-xl transition-all flex items-center justify-center gap-3 select-none tracking-tight;
+}
+
+.btn-secondary-sm {
+  @apply min-h-[44px] h-11 px-5 bg-white hover:bg-neutral-100 border border-[#D8D8D8] text-[#111111] font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2 select-none tracking-tight;
+}
+
+/* Custom Input Field System (52px height) */
+.input-field {
+  @apply w-full h-[52px] px-4 bg-white border border-[#E2E2E2] rounded-xl text-base text-[#111111] placeholder-neutral-400 outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition-all;
+}
+
+/* Selectable Option Cards (Editorial Clean Style) */
+.selection-row {
+  @apply bg-white border border-[#E2E2E2] rounded-xl p-5 cursor-pointer flex items-center justify-between transition-all hover:border-neutral-400 select-none;
+}
+
+.selection-row-active {
+  @apply border-2 border-[#111111] bg-neutral-50/80;
+}
