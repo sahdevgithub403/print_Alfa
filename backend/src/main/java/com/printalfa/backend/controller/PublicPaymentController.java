@@ -33,15 +33,32 @@ public class PublicPaymentController {
         String razorpayPaymentId = (String) body.get("razorpayPaymentId");
         String razorpayOrderId = (String) body.get("razorpayOrderId");
         String razorpaySignature = (String) body.get("razorpaySignature");
-        Boolean successObj = (Boolean) body.get("success");
-        boolean success = successObj != null ? successObj : true;
 
-        if (orderIdStr == null) {
+        if (orderIdStr == null || orderIdStr.trim().isEmpty()) {
             throw new IllegalArgumentException("orderId is required");
         }
 
         UUID orderId = UUID.fromString(orderIdStr);
-        PaymentResponse response = paymentService.verifyPayment(orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature, success);
-        return ResponseEntity.ok(ApiResponse.success("Payment verified", response));
+        PaymentResponse response = paymentService.verifyPayment(orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature);
+        return ResponseEntity.ok(ApiResponse.success("Payment verified successfully", response));
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<ApiResponse<PaymentResponse>> cancelPayment(@RequestBody Map<String, Object> body) {
+        String orderIdStr = (String) body.get("orderId");
+        if (orderIdStr == null || orderIdStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("orderId is required");
+        }
+        UUID orderId = UUID.fromString(orderIdStr);
+        PaymentResponse response = paymentService.cancelPayment(orderId);
+        return ResponseEntity.ok(ApiResponse.success("Payment marked as cancelled", response));
+    }
+
+    @PostMapping("/webhook")
+    public ResponseEntity<Map<String, String>> handleWebhook(
+            @RequestBody String rawPayload,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signatureHeader) {
+        paymentService.handleWebhook(rawPayload, signatureHeader);
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 }

@@ -54,3 +54,8 @@ export const verifyPayment = async (payload) => {
   const response = await api.post("/public/payments/verify", payload);
   return response.data.data;
 };
+
+export const cancelPayment = async (orderId) => {
+  const response = await api.post("/public/payments/cancel", { orderId });
+  return response.data.data;
+};

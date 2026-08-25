@@ -9,16 +9,18 @@ public class ShopDTO {
     private String address;
     private String phone;
     private String logoUrl;
+    private String apiKey;
 
     public ShopDTO() {}
 
-    public ShopDTO(UUID id, String name, String slug, String address, String phone, String logoUrl) {
+    public ShopDTO(UUID id, String name, String slug, String address, String phone, String logoUrl, String apiKey) {
         this.id = id;
         this.name = name;
         this.slug = slug;
         this.address = address;
         this.phone = phone;
         this.logoUrl = logoUrl;
+        this.apiKey = apiKey;
     }
 
     public UUID getId() { return id; }
@@ -38,4 +40,7 @@ public class ShopDTO {
 
     public String getLogoUrl() { return logoUrl; }
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+
+    public String getApiKey() { return apiKey; }
+    public void setApiKey(String apiKey) { this.apiKey = apiKey; }
 }

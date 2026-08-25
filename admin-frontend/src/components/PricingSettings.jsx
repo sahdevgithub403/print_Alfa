@@ -278,6 +278,47 @@ export const PricingSettings = () => {
             </div>
           </div>
         </div>
+
+        {/* Section 3: Special Services Rates (Passport Photo) */}
+        <div className="space-y-5 bg-neutral-50/70 p-6 rounded-2xl border border-[#E2E2E2] md:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <h3 className="text-xs font-bold text-[#111111] uppercase tracking-wider">
+              Special Services Rates
+            </h3>
+            <span className="text-xs text-[#6B6B6B]">
+              Standard 8-photo layout grid creation and print
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-1">
+            <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-xl border border-[#E2E2E2]">
+              <div>
+                <label htmlFor="passport-price-input" className="text-sm font-semibold text-[#111111] block">
+                  Passport Photo Sheet
+                </label>
+                <p className="text-xs text-[#6B6B6B] mt-0.5">
+                  8 photos on 4x6 / A4 glossy photo sheet
+                </p>
+              </div>
+              <div className="relative w-36 shrink-0">
+                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                  ₹
+                </span>
+                <input
+                  id="passport-price-input"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={pricing.passportPrice !== undefined && pricing.passportPrice !== null ? pricing.passportPrice : ""}
+                  onChange={(e) =>
+                    handleFieldChange("passportPrice", e.target.value)
+                  }
+                  className="w-full h-12 pl-8 pr-4 bg-white border border-[#E2E2E2] rounded-xl text-base font-bold text-[#111111] focus:outline-none focus:border-[#111111]"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </form>
   );

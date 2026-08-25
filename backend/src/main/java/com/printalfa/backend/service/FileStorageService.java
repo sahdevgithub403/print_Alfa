@@ -4,6 +4,10 @@ import com.printalfa.backend.entity.Document;
 import com.printalfa.backend.repository.DocumentRepository;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.poi.hpsf.SummaryInformation;
+import org.apache.poi.hwpf.HWPFDocument;
+import org.apache.poi.ooxml.POIXMLProperties;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -11,11 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.*;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -60,7 +66,18 @@ public class FileStorageService {
             throw new RuntimeException("Failed to store file " + originalFileName, ex);
         }
 
-        int pageCount = calculatePageCount(targetLocation.toFile(), extension);
+        int pageCount;
+        try {
+            pageCount = calculatePageCount(targetLocation.toFile(), extension, originalFileName);
+        } catch (Exception ex) {
+            try {
+                Files.deleteIfExists(targetLocation);
+            } catch (IOException ignored) {}
+            if (ex instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) ex;
+            }
+            throw new IllegalArgumentException("Failed to process document " + originalFileName + ": " + ex.getMessage(), ex);
+        }
 
         Document doc = new Document(
                 originalFileName,
@@ -76,9 +93,15 @@ public class FileStorageService {
 
     public Resource loadFileAsResource(String storedFileName) {
         try {
+            if (storedFileName == null || storedFileName.contains("..") || storedFileName.contains("/") || storedFileName.contains("\\")) {
+                throw new IllegalArgumentException("Invalid stored file name");
+            }
             Path filePath = this.fileStorageLocation.resolve(storedFileName).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation)) {
+                throw new SecurityException("Cannot access file outside upload directory");
+            }
             Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists()) {
+            if (resource.exists() && resource.isReadable()) {
                 return resource;
             } else {
                 throw new RuntimeException("File not found " + storedFileName);
@@ -88,15 +111,58 @@ public class FileStorageService {
         }
     }
 
-    private int calculatePageCount(File file, String extension) {
+    public int calculatePageCount(File file, String extension, String originalFileName) {
         if ("pdf".equals(extension)) {
             try (PDDocument doc = Loader.loadPDF(file)) {
-                return doc.getNumberOfPages();
+                int pages = doc.getNumberOfPages();
+                if (pages <= 0) {
+                    throw new IllegalArgumentException("Invalid PDF document: page count is zero");
+                }
+                return pages;
             } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid or corrupted PDF file: " + originalFileName, e);
+            }
+        } else if ("docx".equals(extension)) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 XWPFDocument docx = new XWPFDocument(fis)) {
+                POIXMLProperties props = docx.getProperties();
+                if (props != null && props.getExtendedProperties() != null) {
+                    int pages = props.getExtendedProperties().getPages();
+                    if (pages > 0) {
+                        return pages;
+                    }
+                }
                 return 1;
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid or corrupted DOCX file: " + originalFileName, e);
+            }
+        } else if ("doc".equals(extension)) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 HWPFDocument doc = new HWPFDocument(fis)) {
+                SummaryInformation summary = doc.getSummaryInformation();
+                if (summary != null) {
+                    int pages = summary.getPageCount();
+                    if (pages > 0) {
+                        return pages;
+                    }
+                }
+                return 1;
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid or corrupted DOC file: " + originalFileName, e);
+            }
+        } else if ("jpg".equals(extension) || "jpeg".equals(extension) || "png".equals(extension)) {
+            try {
+                BufferedImage image = ImageIO.read(file);
+                if (image == null) {
+                    throw new IllegalArgumentException("Invalid or unreadable image file: " + originalFileName);
+                }
+                return 1;
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Corrupted image file: " + originalFileName, e);
             }
         }
-        return 1; // Default 1 page for images and documents
+
+        return 1;
     }
 
     private String getFileExtension(String fileName) {

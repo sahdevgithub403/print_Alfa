@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getOrderByToken } from "../api";
 import {
@@ -9,6 +9,10 @@ import {
   FileText,
 } from "lucide-react";
 
+const TERMINAL_STATUSES = ["COMPLETED", "CANCELLED", "FAILED", "REJECTED"];
+const BASE_POLL_INTERVAL = 4000;
+const MAX_BACKOFF_INTERVAL = 30000;
+
 export const OrderTrackingPage = () => {
   const { publicToken } = useParams();
   const navigate = useNavigate();
@@ -17,30 +21,78 @@ export const OrderTrackingPage = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const pollTimeoutRef = useRef(null);
+  const backoffDelayRef = useRef(BASE_POLL_INTERVAL);
+  const isMountedRef = useRef(true);
+
+  const fetchOrderDetails = useCallback(
+    async (isBackground = false) => {
+      if (!publicToken) return;
+
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+
+      if (!isBackground) setLoading(true);
+      else setIsRefreshing(true);
+
+      try {
+        const data = await getOrderByToken(publicToken);
+        if (!isMountedRef.current) return;
+
+        setOrder(data);
+        // Reset delay on successful response
+        backoffDelayRef.current = BASE_POLL_INTERVAL;
+
+        const isTerminal =
+          data?.printStatus &&
+          TERMINAL_STATUSES.includes(data.printStatus.toUpperCase());
+
+        // Schedule next poll only if the order is still active
+        if (!isTerminal && isMountedRef.current) {
+          pollTimeoutRef.current = setTimeout(() => {
+            fetchOrderDetails(true);
+          }, BASE_POLL_INTERVAL);
+        }
+      } catch (err) {
+        console.error("Order tracking poll error:", err);
+        if (!isMountedRef.current) return;
+
+        // Exponential backoff on polling error
+        const nextDelay = Math.min(
+          backoffDelayRef.current * 2,
+          MAX_BACKOFF_INTERVAL,
+        );
+        backoffDelayRef.current = nextDelay;
+
+        pollTimeoutRef.current = setTimeout(() => {
+          fetchOrderDetails(true);
+        }, nextDelay);
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setIsRefreshing(false);
+        }
+      }
+    },
+    [publicToken],
+  );
+
   useEffect(() => {
-    fetchOrderDetails();
-    const interval = setInterval(() => {
-      fetchOrderDetails(true);
-    }, 4000); // 4s polling
+    isMountedRef.current = true;
+    backoffDelayRef.current = BASE_POLL_INTERVAL;
 
-    return () => clearInterval(interval);
-  }, [publicToken]);
+    fetchOrderDetails(false);
 
-  const fetchOrderDetails = async (isBackground = false) => {
-    if (!publicToken) return;
-    if (!isBackground) setLoading(true);
-    else setIsRefreshing(true);
-
-    try {
-      const data = await getOrderByToken(publicToken);
-      setOrder(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+    return () => {
+      isMountedRef.current = false;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+    };
+  }, [fetchOrderDetails]);
 
   const getStepStatus = (stepName) => {
     if (!order) return "PENDING";

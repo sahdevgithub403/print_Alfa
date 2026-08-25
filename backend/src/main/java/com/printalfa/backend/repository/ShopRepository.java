@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 public interface ShopRepository extends JpaRepository<Shop, UUID> {
     Optional<Shop> findBySlug(String slug);
+    Optional<Shop> findByApiKey(String apiKey);
     boolean existsBySlug(String slug);
 }

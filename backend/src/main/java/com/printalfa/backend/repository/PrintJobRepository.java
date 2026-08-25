@@ -11,6 +11,10 @@ import java.util.UUID;
 
 @Repository
 public interface PrintJobRepository extends JpaRepository<PrintJob, UUID> {
+    Optional<PrintJob> findByIdAndOrderShopId(UUID id, UUID shopId);
     Optional<PrintJob> findByOrderId(UUID orderId);
+    boolean existsByOrderId(UUID orderId);
+    Optional<PrintJob> findByOrderIdAndOrderShopId(UUID orderId, UUID shopId);
     List<PrintJob> findByStatusOrderByCreatedAtAsc(JobStatus status);
+    List<PrintJob> findByOrderShopIdAndStatusOrderByCreatedAtAsc(UUID shopId, JobStatus status);
 }

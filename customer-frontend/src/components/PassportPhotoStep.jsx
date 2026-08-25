@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import Cropper from "react-easy-crop";
-import { ArrowLeft, Image as ImageIcon, Check, UploadCloud } from "lucide-react";
-import { uploadDocument } from "../api";
+import { uploadDocument, calculatePrice } from "../api";
 
 export const PassportPhotoStep = ({ shopId, onComplete, onBack }) => {
   const [imageSrc, setImageSrc] = useState(null);
@@ -144,27 +143,20 @@ export const PassportPhotoStep = ({ shopId, onComplete, onBack }) => {
       };
 
       // Calculate price
-      const priceRes = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8085"}/api/public/pricing/calculate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            shopId,
-            documentId: uploadedDoc.id,
-            ...settings,
-          }),
-        }
-      ).then(r => r.json());
+      const pricingData = await calculatePrice({
+        shopId,
+        documentId: uploadedDoc.id,
+        ...settings,
+      });
 
       const item = {
         localId: Date.now().toString(),
         file: layoutFile,
         uploadedDocument: uploadedDoc,
         settings,
-        pricing: priceRes?.data || null,
+        pricing: pricingData || null,
       };
-      
+
       onComplete([item]);
     } catch (err) {
       console.error("Error processing passport photo", err);

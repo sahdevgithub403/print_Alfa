@@ -26,7 +26,9 @@ public class ShopService {
     public ShopDTO getShopBySlug(String slug) {
         Shop shop = shopRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Shop not found with slug: " + slug));
-        return mapShopToDTO(shop);
+        ShopDTO dto = mapShopToDTO(shop);
+        dto.setApiKey(null); // Never leak API key on public endpoints
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +79,7 @@ public class ShopService {
     }
 
     public ShopDTO mapShopToDTO(Shop shop) {
-        return new ShopDTO(shop.getId(), shop.getName(), shop.getSlug(), shop.getAddress(), shop.getPhone(), shop.getLogoUrl());
+        return new ShopDTO(shop.getId(), shop.getName(), shop.getSlug(), shop.getAddress(), shop.getPhone(), shop.getLogoUrl(), shop.getApiKey());
     }
 
     public ShopPricingDTO mapPricingToDTO(ShopPricing pricing) {

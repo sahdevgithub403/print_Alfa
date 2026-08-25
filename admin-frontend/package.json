@@ -34,8 +34,8 @@
     "wait-on": "^9.1.0"
   },
   "build": {
-    "appId": "com.xeroxshop.admin",
-    "productName": "XeroxShop Admin",
+    "appId": "com.printalfa.admin",
+"productName": "PrintAlfa Admin",
     "directories": {
       "output": "dist-electron"
     },

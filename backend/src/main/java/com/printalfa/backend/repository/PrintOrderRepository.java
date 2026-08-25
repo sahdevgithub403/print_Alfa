@@ -15,10 +15,13 @@ import java.util.UUID;
 public interface PrintOrderRepository extends JpaRepository<PrintOrder, UUID> {
     Optional<PrintOrder> findByPublicToken(UUID publicToken);
     Optional<PrintOrder> findByOrderNumber(String orderNumber);
+    Optional<PrintOrder> findByRazorpayOrderId(String razorpayOrderId);
+    boolean existsByOrderNumber(String orderNumber);
     
     List<PrintOrder> findByShopIdOrderByCreatedAtDesc(UUID shopId);
     List<PrintOrder> findByShopIdAndPrintStatusOrderByCreatedAtDesc(UUID shopId, PrintStatus printStatus);
-    boolean existsByShopIdAndDocumentId(UUID shopId, UUID documentId);
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PrintOrder p LEFT JOIN p.items i WHERE p.shop.id = :shopId AND (p.document.id = :documentId OR i.document.id = :documentId)")
+    boolean existsByShopIdAndDocumentId(@Param("shopId") UUID shopId, @Param("documentId") UUID documentId);
 
     @Query("SELECT p FROM PrintOrder p WHERE p.shop.id = :shopId AND p.printStatus IN :statuses ORDER BY p.createdAt DESC")
     List<PrintOrder> findByShopIdAndPrintStatusIn(@Param("shopId") UUID shopId, @Param("statuses") List<PrintStatus> statuses);

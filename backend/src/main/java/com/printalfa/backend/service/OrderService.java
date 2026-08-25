@@ -32,6 +32,7 @@ public class OrderService {
     private final PricingEngineService pricingEngineService;
     private final PrintJobRepository printJobRepository;
     private final WebSocketService webSocketService;
+    private final com.printalfa.backend.repository.PaymentRepository paymentRepository;
 
     @Value("${razorpay.key-id}")
     private String razorpayKeyId;
@@ -45,7 +46,8 @@ public class OrderService {
                         DocumentRepository documentRepository,
                         PricingEngineService pricingEngineService,
                         PrintJobRepository printJobRepository,
-                        WebSocketService webSocketService) {
+                        WebSocketService webSocketService,
+                        com.printalfa.backend.repository.PaymentRepository paymentRepository) {
         this.printOrderRepository = printOrderRepository;
         this.orderItemRepository = orderItemRepository;
         this.shopRepository = shopRepository;
@@ -53,6 +55,7 @@ public class OrderService {
         this.pricingEngineService = pricingEngineService;
         this.printJobRepository = printJobRepository;
         this.webSocketService = webSocketService;
+        this.paymentRepository = paymentRepository;
     }
 
     @Transactional
@@ -63,50 +66,51 @@ public class OrderService {
         List<CreateOrderItemRequest> itemRequests = request.getItems();
         if ((itemRequests == null || itemRequests.isEmpty()) && request.getDocumentId() != null) {
             // Legacy single-item payload compatibility
-            CreateOrderItemRequest singleReq = new CreateOrderItemRequest();
-            singleReq.setDocumentId(request.getDocumentId());
-            singleReq.setPrintType(request.getPrintType() != null ? request.getPrintType() : PrintType.PRINT);
-            singleReq.setColorMode(request.getColorMode());
-            singleReq.setPaperSize(request.getPaperSize());
-            singleReq.setPrintSide(request.getPrintSide());
-            singleReq.setPageRange(request.getPageRange() != null ? request.getPageRange() : "ALL");
-            singleReq.setCopies(request.getCopies() > 0 ? request.getCopies() : 1);
-            itemRequests = List.of(singleReq);
+            CreateOrderItemRequest legacyItem = new CreateOrderItemRequest();
+            legacyItem.setDocumentId(request.getDocumentId());
+            legacyItem.setPrintType(request.getPrintType());
+            legacyItem.setColorMode(request.getColorMode());
+            legacyItem.setPaperSize(request.getPaperSize());
+            legacyItem.setPrintSide(request.getPrintSide());
+            legacyItem.setPageRange(request.getPageRange());
+            legacyItem.setCopies(request.getCopies());
+            itemRequests = List.of(legacyItem);
         }
 
         if (itemRequests == null || itemRequests.isEmpty()) {
-            throw new IllegalArgumentException("Order must contain at least one print file item");
+            throw new IllegalArgumentException("Order must contain at least one document item");
         }
 
         PrintOrder order = new PrintOrder();
-        order.setOrderNumber(generateOrderNumber());
         order.setShop(shop);
-        order.setPaymentMethod(request.getPaymentMethod());
-        order.setPaymentStatus(PaymentStatus.PENDING);
-        order.setPrintStatus(PrintStatus.PENDING);
+        order.setOrderNumber(generateOrderNumber());
+        order.setPublicToken(UUID.randomUUID());
         order.setCustomerName(request.getCustomerName() != null && !request.getCustomerName().trim().isEmpty()
                 ? request.getCustomerName().trim()
                 : "Walk-in Customer");
         order.setCustomerPhone(request.getCustomerPhone() != null ? request.getCustomerPhone().trim() : "");
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setPaymentStatus(PaymentStatus.PENDING);
+        order.setPrintStatus(PrintStatus.PENDING);
 
-        BigDecimal orderTotal = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
+        BigDecimal orderTotal = BigDecimal.ZERO;
 
         for (CreateOrderItemRequest itemReq : itemRequests) {
             Document doc = documentRepository.findById(itemReq.getDocumentId())
                     .orElseThrow(() -> new IllegalArgumentException("Document not found: " + itemReq.getDocumentId()));
 
-            PricingCalculateRequest calcReq = new PricingCalculateRequest();
-            calcReq.setShopId(shop.getId());
-            calcReq.setDocumentId(doc.getId());
-            calcReq.setPrintType(itemReq.getPrintType() != null ? itemReq.getPrintType() : PrintType.PRINT);
-            calcReq.setColorMode(itemReq.getColorMode());
-            calcReq.setPaperSize(itemReq.getPaperSize());
-            calcReq.setPrintSide(itemReq.getPrintSide());
-            calcReq.setPageRange(itemReq.getPageRange());
-            calcReq.setCopies(itemReq.getCopies());
+            PricingCalculateRequest pricingRequest = new PricingCalculateRequest();
+            pricingRequest.setShopId(shop.getId());
+            pricingRequest.setDocumentId(doc.getId());
+            pricingRequest.setPrintType(itemReq.getPrintType() != null ? itemReq.getPrintType() : PrintType.PRINT);
+            pricingRequest.setColorMode(itemReq.getColorMode());
+            pricingRequest.setPaperSize(itemReq.getPaperSize());
+            pricingRequest.setPrintSide(itemReq.getPrintSide());
+            pricingRequest.setPageRange(itemReq.getPageRange());
+            pricingRequest.setCopies(itemReq.getCopies() > 0 ? itemReq.getCopies() : 1);
 
-            PricingCalculateResponse pricingResponse = pricingEngineService.calculatePrice(calcReq);
+            PricingCalculateResponse pricingResponse = pricingEngineService.calculatePrice(pricingRequest);
 
             OrderItem item = new OrderItem();
             item.setOrder(order);
@@ -144,29 +148,52 @@ public class OrderService {
 
         if (order.getPaymentMethod() == PaymentMethod.ONLINE) {
             try {
-                RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
-                JSONObject orderRequest = new JSONObject();
-                // amount in paise
-                orderRequest.put("amount", orderTotal.multiply(new BigDecimal("100")).intValue());
-                orderRequest.put("currency", "INR");
-                orderRequest.put("receipt", order.getOrderNumber());
-                
-                Order rzpOrder = razorpay.orders.create(orderRequest);
-                order.setRazorpayOrderId(rzpOrder.get("id"));
+                if (razorpayKeyId != null && !razorpayKeyId.startsWith("rzp_test_dummy")) {
+                    RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+                    JSONObject orderRequest = new JSONObject();
+                    // amount in paise
+                    orderRequest.put("amount", orderTotal.multiply(new BigDecimal("100")).intValue());
+                    orderRequest.put("currency", "INR");
+                    orderRequest.put("receipt", order.getOrderNumber());
+                    
+                    Order rzpOrder = razorpay.orders.create(orderRequest);
+                    order.setRazorpayOrderId(rzpOrder.get("id"));
+                } else {
+                    order.setRazorpayOrderId("order_test_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8));
+                }
             } catch (RazorpayException e) {
                 throw new RuntimeException("Failed to create Razorpay order", e);
             }
         }
 
         PrintOrder savedOrder = printOrderRepository.save(order);
-        OrderDTO orderDTO = mapToDTO(savedOrder);
-        
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "NEW_PRINT_REQUEST");
-        event.put("order", orderDTO);
-        webSocketService.sendOrderUpdate(shop.getId(), event);
-        
-        return orderDTO;
+
+        // Record initial Payment record
+        com.printalfa.backend.entity.Payment initialPayment = new com.printalfa.backend.entity.Payment();
+        initialPayment.setOrder(savedOrder);
+        initialPayment.setAmount(savedOrder.getTotalPrice());
+        initialPayment.setPaymentMethod(savedOrder.getPaymentMethod());
+        initialPayment.setStatus(savedOrder.getPaymentStatus());
+        if (savedOrder.getPaymentMethod() == PaymentMethod.PAY_AT_SHOP) {
+            initialPayment.setTransactionId("CASH-" + savedOrder.getOrderNumber());
+        }
+        paymentRepository.save(initialPayment);
+
+        // Enqueue PrintJob and notify shop ONLY for eligible orders:
+        // 1. PAY_AT_SHOP orders are immediately queued for physical fulfillment
+        // 2. ONLINE orders are queued only after verified online payment
+        if (savedOrder.getPaymentMethod() == PaymentMethod.PAY_AT_SHOP || savedOrder.getPaymentStatus() == PaymentStatus.PAID) {
+            PrintJob printJob = new PrintJob(savedOrder, JobStatus.QUEUED);
+            printJobRepository.save(printJob);
+
+            OrderDTO orderDTO = mapToDTO(savedOrder);
+            Map<String, Object> event = new HashMap<>();
+            event.put("type", "NEW_PRINT_REQUEST");
+            event.put("order", orderDTO);
+            webSocketService.sendOrderUpdate(shop.getId(), event);
+        }
+
+        return mapToDTO(savedOrder);
     }
 
     @Transactional(readOnly = true)
@@ -211,15 +238,37 @@ public class OrderService {
             }
         }
 
-        // Manage PrintJob queue if present
+        // Manage PrintJob queue lifecycle
         if (newStatus == PrintStatus.PRINTING) {
-            printJobRepository.findByOrderId(orderId).orElseGet(() -> {
-                PrintJob job = new PrintJob(order, JobStatus.PROCESSING);
-                return printJobRepository.save(job);
+            printJobRepository.findByOrderId(orderId).ifPresentOrElse(job -> {
+                if (job.getStatus() == JobStatus.FAILED || job.getStatus() == JobStatus.COMPLETED) {
+                    job.setStatus(JobStatus.QUEUED);
+                    job.setAssignedAgentId(null);
+                    printJobRepository.save(job);
+                }
+            }, () -> {
+                PrintJob job = new PrintJob(order, JobStatus.QUEUED);
+                printJobRepository.save(job);
             });
         } else if (newStatus == PrintStatus.COMPLETED) {
             printJobRepository.findByOrderId(orderId).ifPresent(job -> {
                 job.setStatus(JobStatus.COMPLETED);
+                printJobRepository.save(job);
+            });
+        } else if (newStatus == PrintStatus.FAILED) {
+            printJobRepository.findByOrderId(orderId).ifPresent(job -> {
+                job.setStatus(JobStatus.FAILED);
+                printJobRepository.save(job);
+            });
+        } else if (newStatus == PrintStatus.PENDING) {
+            printJobRepository.findByOrderId(orderId).ifPresentOrElse(job -> {
+                if (job.getStatus() != JobStatus.QUEUED) {
+                    job.setStatus(JobStatus.QUEUED);
+                    job.setAssignedAgentId(null);
+                    printJobRepository.save(job);
+                }
+            }, () -> {
+                PrintJob job = new PrintJob(order, JobStatus.QUEUED);
                 printJobRepository.save(job);
             });
         }
@@ -366,8 +415,25 @@ public class OrderService {
         return dto;
     }
 
+    private static final String ORDER_NUMBER_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final int ORDER_NUMBER_LENGTH = 6;
+    private static final int MAX_COLLISION_RETRIES = 10;
+    private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+
     private String generateOrderNumber() {
-        int randomNum = 1000 + new Random().nextInt(9000);
-        return "PR-" + randomNum;
+        for (int attempt = 0; attempt < MAX_COLLISION_RETRIES; attempt++) {
+            StringBuilder sb = new StringBuilder("PR-");
+            for (int i = 0; i < ORDER_NUMBER_LENGTH; i++) {
+                int index = secureRandom.nextInt(ORDER_NUMBER_ALPHABET.length());
+                sb.append(ORDER_NUMBER_ALPHABET.charAt(index));
+            }
+            String candidate = sb.toString();
+            if (!printOrderRepository.existsByOrderNumber(candidate)) {
+                return candidate;
+            }
+        }
+        // Fallback with timestamp to guarantee uniqueness under extreme load
+        long timeSuffix = System.currentTimeMillis() % 1000000;
+        return "PR-" + timeSuffix + "-" + (100 + secureRandom.nextInt(900));
     }
 }

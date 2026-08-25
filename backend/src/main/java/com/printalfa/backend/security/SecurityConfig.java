@@ -34,18 +34,27 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtTokenProvider tokenProvider;
+    private final com.printalfa.backend.repository.ShopRepository shopRepository;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtTokenProvider tokenProvider) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService,
+                          JwtTokenProvider tokenProvider,
+                          com.printalfa.backend.repository.ShopRepository shopRepository) {
         this.userDetailsService = userDetailsService;
         this.tokenProvider = tokenProvider;
+        this.shopRepository = shopRepository;
     }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+    }
+
+    @Bean
+    public PrintAgentApiKeyFilter printAgentApiKeyFilter() {
+        return new PrintAgentApiKeyFilter(shopRepository);
     }
 
     @Bean
@@ -70,28 +79,29 @@ public class SecurityConfig {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     ApiResponse<?> apiResponse = ApiResponse.error("Unauthorized access: " + authException.getMessage());
-                    new ObjectMapper().writeValue(response.getOutputStream(), apiResponse);
+                    new ObjectMapper().findAndRegisterModules().writeValue(response.getOutputStream(), apiResponse);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     ApiResponse<?> apiResponse = ApiResponse.error("Forbidden access: " + accessDeniedException.getMessage());
-                    new ObjectMapper().writeValue(response.getOutputStream(), apiResponse);
+                    new ObjectMapper().findAndRegisterModules().writeValue(response.getOutputStream(), apiResponse);
                 })
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/api/print-agent/**").permitAll()
+                .requestMatchers("/ws-admin/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/print-agent/**").hasAnyAuthority("ROLE_PRINT_AGENT", "ROLE_SHOP_ADMIN", "SHOP_ADMIN", "ROLE_SUPER_ADMIN")
                 .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_SHOP_ADMIN", "SHOP_ADMIN", "ROLE_SUPER_ADMIN")
                 .anyRequest().authenticated()
             );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(printAgentApiKeyFilter(), JwtAuthenticationFilter.class);
 
         return http.build();
     }
@@ -100,12 +110,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+        List<String> origins = (allowedOrigins != null && !allowedOrigins.trim().isEmpty())
+                ? Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
+                : List.of("http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174");
 
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));

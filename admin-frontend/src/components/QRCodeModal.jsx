@@ -1,9 +1,26 @@
 import React, { useState } from "react";
 import { X, Printer, ExternalLink, Copy, Check } from "lucide-react";
 
+export const getCustomerAppBaseUrl = () => {
+  if (import.meta.env.VITE_CUSTOMER_APP_URL) {
+    return import.meta.env.VITE_CUSTOMER_APP_URL.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname, port } = window.location;
+    if (protocol === "http:" || protocol === "https:") {
+      if (port === "5174") {
+        return `${protocol}//${hostname}:5173`;
+      }
+      return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+    }
+  }
+  return "http://localhost:5173";
+};
+
 export const QRCodeModal = ({ shopName, shopSlug, onClose }) => {
   const [copied, setCopied] = useState(false);
-  const shopUrl = `${window.location.protocol}//${window.location.hostname}:5173/shop/${shopSlug}`;
+  const customerBaseUrl = getCustomerAppBaseUrl();
+  const shopUrl = `${customerBaseUrl}/shop/${shopSlug}`;
 
   const handlePrintPoster = () => {
     window.print();

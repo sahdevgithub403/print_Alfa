@@ -13,6 +13,7 @@ import { SettingsView } from "../components/SettingsView";
 import { Inbox, AlertTriangle, Search } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
+import { printAgentWorker } from "../services/printAgentWorker";
 
 export const AdminDashboardPage = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("ORDERS");
@@ -28,6 +29,9 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
 
   useEffect(() => {
     fetchOrders();
+    // Start background Print Agent worker
+    printAgentWorker.start();
+
     const interval = setInterval(() => {
       fetchOrders(true);
     }, 30000); // 30s fallback polling
@@ -36,8 +40,10 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     const baseUrl = API_BASE_URL.replace("/api", "");
     const wsUrl = `${baseUrl}/ws-admin`;
 
+    const token = localStorage.getItem("admin_jwt_token");
     const stompClient = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -55,6 +61,11 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
               console.log("Received real-time event:", event);
               // Re-fetch orders silently to update the list
               fetchOrders(true);
+
+              // Instantly trigger physical print worker on new print requests
+              if (event.type === "NEW_PRINT_REQUEST" || event.type === "ORDER_CREATED") {
+                printAgentWorker.processQueue();
+              }
 
               // Trigger Windows Notification via Electron
               if (window.electronAPI && event.type === "NEW_PRINT_REQUEST") {
@@ -83,6 +94,7 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     return () => {
       clearInterval(interval);
       stompClient.deactivate();
+      printAgentWorker.stop();
     };
   }, [user]);
 

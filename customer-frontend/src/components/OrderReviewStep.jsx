@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { createOrder, verifyPayment } from "../api";
+import { createOrder, verifyPayment, cancelPayment } from "../api";
 import {
   ArrowLeft,
   CreditCard,
@@ -123,14 +123,16 @@ export const OrderReviewStep = ({
           modal: {
             ondismiss: function () {
               setIsSubmitting(false);
+              cancelPayment(order.id).catch(() => {});
             },
           },
         };
 
         const rzp = new window.Razorpay(options);
         rzp.on("payment.failed", function (response) {
-          setErrorMessage("Payment failed. Please try again.");
+          setErrorMessage("Payment failed or was cancelled. Please try again.");
           setIsSubmitting(false);
+          cancelPayment(order.id).catch(() => {});
         });
         rzp.open();
       } else {
