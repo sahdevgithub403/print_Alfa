@@ -5,6 +5,8 @@ import { ShopHeader } from "../components/ShopHeader";
 import { FileUploadStep } from "../components/FileUploadStep";
 import { PrintOptionsStep } from "../components/PrintOptionsStep";
 import { OrderReviewStep } from "../components/OrderReviewStep";
+import { JobTypeSelectionStep } from "../components/JobTypeSelectionStep";
+import { PassportPhotoStep } from "../components/PassportPhotoStep";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export const CustomerShopPage = () => {
@@ -15,7 +17,8 @@ export const CustomerShopPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // 0 = type selection
+  const [printJobType, setPrintJobType] = useState(null);
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -72,34 +75,34 @@ export const CustomerShopPage = () => {
       {/* Main Editorial Flow */}
       <main className="flex-1 max-w-xl w-full mx-auto px-5 sm:px-6 pt-8 pb-16">
         {/* Step Progression Bar */}
-        <div className="mb-8 sm:mb-10 bg-white rounded-xl p-3 border border-[#E2E2E2] flex items-center justify-between text-sm font-bold shadow-2xs">
+        <div className="mb-8 sm:mb-10 bg-white rounded-xl p-3 border border-[#E2E2E2] flex items-center justify-between text-sm font-bold shadow-sm">
           <div
-            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 1 ? "text-[#111111]" : "text-neutral-400"}`}
+            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 1 ? "text-brand-700" : "text-neutral-400"}`}
           >
             <span
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold ${step >= 1 ? "bg-[#111111] text-white" : "bg-neutral-200 text-neutral-500"}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm ${step >= 1 ? "bg-brand-600 text-white" : "bg-neutral-100 border border-neutral-200 text-neutral-500"}`}
             >
               1
             </span>
             <span className="hidden sm:inline">Upload</span>
           </div>
-          <div className="h-px bg-[#E2E2E2] flex-1 mx-2 sm:mx-4" />
+          <div className={`h-1 rounded-full flex-1 mx-2 sm:mx-4 ${step >= 2 ? "bg-brand-600" : "bg-neutral-200"}`} />
           <div
-            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 2 ? "text-[#111111]" : "text-neutral-400"}`}
+            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 2 ? "text-brand-700" : "text-neutral-400"}`}
           >
             <span
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold ${step >= 2 ? "bg-[#111111] text-white" : "bg-neutral-200 text-neutral-500"}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm ${step >= 2 ? "bg-brand-600 text-white" : "bg-neutral-100 border border-neutral-200 text-neutral-500"}`}
             >
               2
             </span>
             <span className="hidden sm:inline">Options</span>
           </div>
-          <div className="h-px bg-[#E2E2E2] flex-1 mx-2 sm:mx-4" />
+          <div className={`h-1 rounded-full flex-1 mx-2 sm:mx-4 ${step >= 3 ? "bg-brand-600" : "bg-neutral-200"}`} />
           <div
-            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 3 ? "text-[#111111]" : "text-neutral-400"}`}
+            className={`flex items-center gap-2 sm:gap-2.5 ${step >= 3 ? "text-brand-700" : "text-neutral-400"}`}
           >
             <span
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold ${step >= 3 ? "bg-[#111111] text-white" : "bg-neutral-200 text-neutral-500"}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm ${step >= 3 ? "bg-brand-600 text-white" : "bg-neutral-100 border border-neutral-200 text-neutral-500"}`}
             >
               3
             </span>
@@ -107,15 +110,36 @@ export const CustomerShopPage = () => {
           </div>
         </div>
 
-        {step === 1 && (
+        {step === 0 && (
+          <JobTypeSelectionStep
+            onSelect={(type) => {
+              setPrintJobType(type);
+              setStep(1);
+            }}
+          />
+        )}
+
+        {step === 1 && printJobType === "DOCUMENT" && (
           <FileUploadStep
             items={items}
             onItemsChange={setItems}
             onContinue={() => setStep(2)}
+            onBack={() => setStep(0)}
           />
         )}
 
-        {step === 2 && items.length > 0 && (
+        {step === 1 && printJobType === "PASSPORT_PHOTO" && (
+          <PassportPhotoStep
+            shopId={shop.id}
+            onComplete={(newItems) => {
+              setItems(newItems);
+              setStep(3); // Skip options, go straight to review
+            }}
+            onBack={() => setStep(0)}
+          />
+        )}
+
+        {step === 2 && items.length > 0 && printJobType === "DOCUMENT" && (
           <PrintOptionsStep
             shopId={shop.id}
             items={items}
@@ -129,7 +153,13 @@ export const CustomerShopPage = () => {
           <OrderReviewStep
             shopId={shop.id}
             items={items}
-            onBack={() => setStep(2)}
+            onBack={() => {
+              if (printJobType === "PASSPORT_PHOTO") {
+                setStep(1);
+              } else {
+                setStep(2);
+              }
+            }}
             onOrderCompleted={handleOrderCompleted}
           />
         )}

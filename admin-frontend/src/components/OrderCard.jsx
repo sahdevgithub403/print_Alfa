@@ -8,6 +8,7 @@ import {
   Loader2,
   ChevronRight,
   Files,
+  UserSquare2,
 } from "lucide-react";
 
 export const OrderCard = ({
@@ -24,6 +25,8 @@ export const OrderCard = ({
   const firstDoc = items[0]?.document || order.document;
   const docId = firstDoc?.id || "";
   const primaryDocName = firstDoc?.originalFileName || "Document.pdf";
+  const firstDocType = items[0]?.printType || order.printType;
+  const isPassportPhoto = firstDocType === "PASSPORT_PHOTO";
 
   const totalCalculatedPages =
     items.length > 0
@@ -76,7 +79,9 @@ export const OrderCard = ({
         {/* Left Column: Multi-File Info & Specs */}
         <div className="flex items-start gap-4 min-w-0 flex-1">
           <div className="w-12 h-12 rounded-xl bg-white border border-[#E2E2E2] text-[#111111] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-            {itemCount > 1 ? (
+            {isPassportPhoto ? (
+              <UserSquare2 className="w-6 h-6 text-brand-600" />
+            ) : itemCount > 1 ? (
               <Files className="w-6 h-6 text-neutral-800" />
             ) : (
               <FileText className="w-6 h-6 text-neutral-800" />

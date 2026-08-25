@@ -38,7 +38,12 @@ public class PricingEngineService {
         int pagesToPrint = parsePageRange(request.getPageRange(), totalDocPages);
         int copies = Math.max(1, request.getCopies());
 
-        BigDecimal ratePerPage = getRatePerPage(pricing, request.getColorMode(), request.getPaperSize(), request.getPrintSide());
+        BigDecimal ratePerPage;
+        if (request.getPrintType() == com.printalfa.backend.enums.PrintType.PASSPORT_PHOTO) {
+            ratePerPage = pricing.getPassportPrice();
+        } else {
+            ratePerPage = getRatePerPage(pricing, request.getColorMode(), request.getPaperSize(), request.getPrintSide());
+        }
 
         // For double side printing, charge by physical paper sheets (each sheet contains 2 pages)
         int unitsToCharge = (request.getPrintSide() == PrintSide.DOUBLE)

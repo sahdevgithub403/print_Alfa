@@ -9,6 +9,7 @@ import {
   FileText,
   X,
   AlertCircle,
+  UserSquare2,
 } from "lucide-react";
 
 export const OrderReviewStep = ({
@@ -218,18 +219,28 @@ export const OrderReviewStep = ({
               >
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-neutral-100 text-[#111111] flex items-center justify-center shrink-0 border border-neutral-200 mt-0.5">
-                    <FileText className="w-5 h-5" />
+                    {item.settings.printType === "PASSPORT_PHOTO" ? (
+                      <UserSquare2 className="w-5 h-5" />
+                    ) : (
+                      <FileText className="w-5 h-5" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-base font-bold text-[#111111] truncate">
-                      {fileName}
+                      {item.settings.printType === "PASSPORT_PHOTO" ? "Passport Photo" : fileName}
                     </p>
                     <p className="text-xs sm:text-sm text-[#6B6B6B] mt-0.5 font-medium">
-                      {item.settings.colorMode === "BW" ? "B&W" : "Color"} ·{" "}
-                      {item.settings.paperSize} ·{" "}
-                      {item.settings.printSide === "SINGLE"
-                        ? "Single-sided"
-                        : "Double-sided"}
+                      {item.settings.printType === "PASSPORT_PHOTO" ? (
+                        "Ready to Print Layout"
+                      ) : (
+                        <>
+                          {item.settings.colorMode === "BW" ? "B&W" : "Color"} ·{" "}
+                          {item.settings.paperSize} ·{" "}
+                          {item.settings.printSide === "SINGLE"
+                            ? "Single-sided"
+                            : "Double-sided"}
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-[#6B6B6B] mt-0.5">
                       {pageCount} {pageCount === 1 ? "page" : "pages"} ·{" "}

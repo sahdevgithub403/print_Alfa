@@ -138,5 +138,5 @@ button:active, a:active, .selection-row:active {
 }
 
 .selection-row-active {
-  @apply border-2 border-[#111111] bg-neutral-50/80;
+  @apply border-2 border-brand-500 bg-brand-50/50 text-brand-900 shadow-sm;
 }

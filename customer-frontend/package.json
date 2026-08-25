@@ -12,13 +12,12 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.6.8",
-    "clsx": "^2.1.0",
     "lucide-react": "^0.359.0",
     "mammoth": "^1.12.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3",
-    "tailwind-merge": "^2.2.2"
+    "react-easy-crop": "^6.2.3",
+    "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

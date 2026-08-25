@@ -70,6 +70,7 @@ public class ShopService {
         if (request.getBwA3Double() != null) pricing.setBwA3Double(request.getBwA3Double());
         if (request.getColorA3Single() != null) pricing.setColorA3Single(request.getColorA3Single());
         if (request.getColorA3Double() != null) pricing.setColorA3Double(request.getColorA3Double());
+        if (request.getPassportPrice() != null) pricing.setPassportPrice(request.getPassportPrice());
 
         ShopPricing updated = shopPricingRepository.save(pricing);
         return mapPricingToDTO(updated);
@@ -91,6 +92,7 @@ public class ShopService {
         dto.setBwA3Double(pricing.getBwA3Double());
         dto.setColorA3Single(pricing.getColorA3Single());
         dto.setColorA3Double(pricing.getColorA3Double());
+        dto.setPassportPrice(pricing.getPassportPrice());
         return dto;
     }
 }

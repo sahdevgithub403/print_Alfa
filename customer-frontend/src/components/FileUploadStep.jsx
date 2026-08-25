@@ -8,6 +8,7 @@ import {
   File,
   X,
   ArrowRight,
+  ArrowLeft,
   Loader2,
   AlertCircle,
   Plus,
@@ -17,7 +18,7 @@ import {
   FileWarning,
 } from "lucide-react";
 
-export const FileUploadStep = ({ items, onItemsChange, onContinue }) => {
+export const FileUploadStep = ({ items, onItemsChange, onContinue, onBack }) => {
   const [globalError, setGlobalError] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -157,6 +158,15 @@ export const FileUploadStep = ({ items, onItemsChange, onContinue }) => {
     <div className="space-y-8">
       {/* Editorial Title */}
       <div>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-sm font-bold text-[#6B6B6B] hover:text-[#111111] px-3 py-2 -ml-3 mb-2 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to type selection</span>
+          </button>
+        )}
         <h2 className="text-3xl sm:text-4xl font-extrabold text-[#111111] tracking-tight">
           Upload Documents
         </h2>
@@ -192,17 +202,17 @@ export const FileUploadStep = ({ items, onItemsChange, onContinue }) => {
             e.preventDefault();
             handleFilesSelected(e.dataTransfer.files);
           }}
-          className="min-h-[240px] border-2 border-dashed border-[#D8D8D8] hover:border-[#111111] rounded-2xl p-10 text-center cursor-pointer transition-all bg-white flex flex-col justify-center items-center gap-5 shadow-2xs"
+          className="min-h-[260px] border-2 border-dashed border-brand-200 bg-brand-50 hover:bg-brand-100/50 hover:border-brand-400 rounded-3xl p-10 text-center cursor-pointer transition-all flex flex-col justify-center items-center gap-6 shadow-sm"
         >
-          <div className="w-16 h-16 rounded-2xl bg-neutral-100 text-[#111111] flex items-center justify-center border border-neutral-200">
-            <Upload className="w-8 h-8" />
+          <div className="w-20 h-20 rounded-full bg-white text-brand-600 flex items-center justify-center shadow-md">
+            <Upload className="w-10 h-10" />
           </div>
-          <div className="space-y-1.5">
-            <p className="text-lg sm:text-xl font-extrabold text-[#111111]">
+          <div className="space-y-2">
+            <p className="text-xl sm:text-2xl font-extrabold text-[#111111]">
               Tap or drag files to upload
             </p>
-            <p className="text-sm sm:text-base text-[#6B6B6B]">
-              Supports multiple PDF, DOCX, JPG, PNG files up to 20 MB each
+            <p className="text-sm sm:text-base text-neutral-600 font-medium">
+              Supports <span className="font-bold text-neutral-800">PDF, DOCX, JPG, PNG</span> up to <span className="font-bold text-neutral-800">20 MB</span>
             </p>
           </div>
         </div>
@@ -239,15 +249,19 @@ export const FileUploadStep = ({ items, onItemsChange, onContinue }) => {
                   className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E2E2E2] flex items-center justify-between gap-3 sm:gap-4 shadow-2xs"
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-neutral-100 text-[#111111] flex items-center justify-center shrink-0 border border-neutral-200">
-                      {fileName.endsWith(".pdf") ? (
-                        <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-                      ) : fileName.match(/\.(jpg|jpeg|png)$/i) ? (
-                        <Image className="w-5 h-5 sm:w-6 sm:h-6" />
-                      ) : (
-                        <File className="w-5 h-5 sm:w-6 sm:h-6" />
-                      )}
-                    </div>
+                    {fileName.toLowerCase().endsWith(".pdf") ? (
+                      <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                    ) : fileName.match(/\.(jpg|jpeg|png)$/i) ? (
+                      <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+                        <Image className="w-6 h-6" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                        <File className="w-6 h-6" />
+                      </div>
+                    )}
 
                     <div className="min-w-0">
                       <p className="text-sm sm:text-lg font-bold text-[#111111] truncate">

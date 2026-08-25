@@ -14,6 +14,7 @@ public class ShopPricingDTO {
     private BigDecimal bwA3Double;
     private BigDecimal colorA3Single;
     private BigDecimal colorA3Double;
+    private BigDecimal passportPrice;
 
     public ShopPricingDTO() {}
 
@@ -46,4 +47,7 @@ public class ShopPricingDTO {
 
     public BigDecimal getColorA3Double() { return colorA3Double; }
     public void setColorA3Double(BigDecimal colorA3Double) { this.colorA3Double = colorA3Double; }
+
+    public BigDecimal getPassportPrice() { return passportPrice; }
+    public void setPassportPrice(BigDecimal passportPrice) { this.passportPrice = passportPrice; }
 }

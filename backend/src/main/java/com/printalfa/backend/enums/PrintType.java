@@ -2,5 +2,6 @@ package com.printalfa.backend.enums;
 
 public enum PrintType {
     PRINT,
-    XEROX
+    XEROX,
+    PASSPORT_PHOTO
 }

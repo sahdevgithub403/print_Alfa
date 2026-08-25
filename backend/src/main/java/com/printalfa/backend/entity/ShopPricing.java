@@ -46,12 +46,16 @@ public class ShopPricing {
     @Column(nullable = false)
     private BigDecimal colorA3Double;
 
+    @Column(nullable = false, columnDefinition = "DECIMAL(10,2) DEFAULT '50.00'")
+    private BigDecimal passportPrice = new BigDecimal("50.00");
+
     public ShopPricing() {}
 
     public ShopPricing(Shop shop, BigDecimal bwA4Single, BigDecimal bwA4Double,
                        BigDecimal colorA4Single, BigDecimal colorA4Double,
                        BigDecimal bwA3Single, BigDecimal bwA3Double,
-                       BigDecimal colorA3Single, BigDecimal colorA3Double) {
+                       BigDecimal colorA3Single, BigDecimal colorA3Double,
+                       BigDecimal passportPrice) {
         this.shop = shop;
         this.bwA4Single = bwA4Single;
         this.bwA4Double = bwA4Double;
@@ -61,6 +65,7 @@ public class ShopPricing {
         this.bwA3Double = bwA3Double;
         this.colorA3Single = colorA3Single;
         this.colorA3Double = colorA3Double;
+        this.passportPrice = passportPrice != null ? passportPrice : new BigDecimal("50.00");
     }
 
     public UUID getId() { return id; }
@@ -92,4 +97,7 @@ public class ShopPricing {
 
     public BigDecimal getColorA3Double() { return colorA3Double; }
     public void setColorA3Double(BigDecimal colorA3Double) { this.colorA3Double = colorA3Double; }
+
+    public BigDecimal getPassportPrice() { return passportPrice; }
+    public void setPassportPrice(BigDecimal passportPrice) { this.passportPrice = passportPrice; }
 }

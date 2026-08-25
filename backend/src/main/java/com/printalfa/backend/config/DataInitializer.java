@@ -77,7 +77,8 @@ public class DataInitializer implements CommandLineRunner {
                     new BigDecimal("5.00"),  // BW A3 Single
                     new BigDecimal("8.00"),  // BW A3 Double
                     new BigDecimal("20.00"), // Color A3 Single
-                    new BigDecimal("35.00")  // Color A3 Double
+                    new BigDecimal("35.00"), // Color A3 Double
+                    new BigDecimal("50.00")  // Passport Price
             );
             shopPricingRepository.save(pricing);
         }
@@ -92,7 +93,8 @@ public class DataInitializer implements CommandLineRunner {
                     new BigDecimal("6.00"),  // BW A3 Single
                     new BigDecimal("10.00"), // BW A3 Double
                     new BigDecimal("25.00"), // Color A3 Single
-                    new BigDecimal("40.00")  // Color A3 Double
+                    new BigDecimal("40.00"), // Color A3 Double
+                    new BigDecimal("60.00")  // Passport Price
             );
             shopPricingRepository.save(pricingB);
         }
