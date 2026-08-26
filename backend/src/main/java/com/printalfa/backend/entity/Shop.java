@@ -26,6 +26,11 @@ public class Shop {
     private String address;
     private String phone;
     private String logoUrl;
+    
+    private String ownerName;
+    private String city;
+    private String state;
+    private String pincode;
 
     @Column(unique = true)
     private String apiKey;
@@ -49,6 +54,18 @@ public class Shop {
         this.address = address;
         this.phone = phone;
         this.logoUrl = logoUrl;
+    }
+
+    public Shop(String name, String slug, String address, String phone, String logoUrl, String ownerName, String city, String state, String pincode) {
+        this.name = name;
+        this.slug = slug;
+        this.address = address;
+        this.phone = phone;
+        this.logoUrl = logoUrl;
+        this.ownerName = ownerName;
+        this.city = city;
+        this.state = state;
+        this.pincode = pincode;
         this.apiKey = "pa_live_" + UUID.randomUUID().toString().replace("-", "");
     }
 }

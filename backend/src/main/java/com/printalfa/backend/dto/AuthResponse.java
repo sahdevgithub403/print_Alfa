@@ -9,16 +9,22 @@ public class AuthResponse {
     private UUID shopId;
     private String shopName;
     private String shopSlug;
+    private boolean shopSetupComplete;
+    private String apiKey;
+    private String name;
 
     public AuthResponse() {}
 
-    public AuthResponse(String token, String email, String role, UUID shopId, String shopName, String shopSlug) {
+    public AuthResponse(String token, String email, String role, UUID shopId, String shopName, String shopSlug, boolean shopSetupComplete, String apiKey, String name) {
         this.token = token;
         this.email = email;
         this.role = role;
         this.shopId = shopId;
         this.shopName = shopName;
         this.shopSlug = shopSlug;
+        this.shopSetupComplete = shopSetupComplete;
+        this.apiKey = apiKey;
+        this.name = name;
     }
 
     public String getToken() { return token; }
@@ -38,4 +44,13 @@ public class AuthResponse {
 
     public String getShopSlug() { return shopSlug; }
     public void setShopSlug(String shopSlug) { this.shopSlug = shopSlug; }
+
+    public boolean isShopSetupComplete() { return shopSetupComplete; }
+    public void setShopSetupComplete(boolean shopSetupComplete) { this.shopSetupComplete = shopSetupComplete; }
+
+    public String getApiKey() { return apiKey; }
+    public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 }

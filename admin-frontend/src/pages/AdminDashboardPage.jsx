@@ -3,6 +3,7 @@ import {
   getAdminOrders,
   updateOrderPrintStatus,
   updateOrderPaymentStatus,
+  sendHeartbeat,
 } from "../api";
 import { Sidebar } from "../components/Sidebar";
 import { OrderCard } from "../components/OrderCard";
@@ -14,6 +15,7 @@ import { Inbox, AlertTriangle, Search } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { printAgentWorker } from "../services/printAgentWorker";
+import { Activity } from "lucide-react";
 
 export const AdminDashboardPage = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("ORDERS");
@@ -23,6 +25,9 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  
+  const [agentState, setAgentState] = useState(printAgentWorker.getState());
+  const notifiedOrders = React.useRef(new Set());
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -31,10 +36,20 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     fetchOrders();
     // Start background Print Agent worker
     printAgentWorker.start();
+    const unsubscribeAgent = printAgentWorker.subscribe(setAgentState);
 
     const interval = setInterval(() => {
       fetchOrders(true);
     }, 30000); // 30s fallback polling
+    
+    // Heartbeat ping every 10 seconds to maintain single-device active session
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        await sendHeartbeat();
+      } catch (err) {
+        console.error("Heartbeat failed", err);
+      }
+    }, 10000);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
     const baseUrl = API_BASE_URL.replace("/api", "");
@@ -64,19 +79,16 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
 
               // Instantly trigger physical print worker on new print requests
               if (event.type === "NEW_PRINT_REQUEST" || event.type === "ORDER_CREATED") {
-                printAgentWorker.processQueue();
-              }
-
-              // Trigger Windows Notification via Electron
-              if (window.electronAPI && event.type === "NEW_PRINT_REQUEST") {
-                const orderNum = event.order?.orderNumber || "New Request";
-                const customerName =
-                  event.order?.customerName || "Walk-in Customer";
-                const itemsCount = event.order?.items?.length || 1;
-                window.electronAPI.showNotification(
-                  `New Print Request: ${orderNum}`,
-                  `${customerName} sent ${itemsCount} document(s).`,
-                );
+                const order = event.order;
+                if (order && !notifiedOrders.current.has(order.id)) {
+                  notifiedOrders.current.add(order.id);
+                  if (window.electronAPI?.showOrderNotification) {
+                    window.electronAPI.showOrderNotification(order);
+                  } else {
+                    // Fallback to auto-print for web browser
+                    printAgentWorker.processQueue();
+                  }
+                }
               }
             }
           },
@@ -91,10 +103,35 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
 
     stompClient.activate();
 
+    let unsubscribeIpc = null;
+    if (window.electronAPI?.onOrderActionResult) {
+      window.electronAPI.onOrderActionResult(async ({ orderId, action }) => {
+        console.log(`Received action ${action} for order ${orderId}`);
+        if (action === 'ACCEPT') {
+          try {
+            await updateOrderPrintStatus(orderId, 'QUEUED');
+            fetchOrders(true);
+            printAgentWorker.processQueue();
+          } catch (e) {
+            console.error("Failed to accept order:", e);
+          }
+        } else if (action === 'DECLINE') {
+          try {
+            await updateOrderPrintStatus(orderId, 'CANCELLED');
+            fetchOrders(true);
+          } catch (e) {
+            console.error("Failed to decline order:", e);
+          }
+        }
+      });
+    }
+
     return () => {
       clearInterval(interval);
+      clearInterval(heartbeatInterval);
       stompClient.deactivate();
       printAgentWorker.stop();
+      unsubscribeAgent();
     };
   }, [user]);
 
@@ -145,6 +182,18 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
   const completedCount = orders.filter(
     (o) => o.printStatus === "COMPLETED",
   ).length;
+
+  // Today's Overview & Revenue (Monitoring)
+  const today = new Date().toDateString();
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
+  const todayReceived = todayOrders.length;
+  const todayPrinted = todayOrders.filter(o => o.printStatus === "COMPLETED").length;
+  const todayDeclined = todayOrders.filter(o => o.printStatus === "DECLINED" || o.printStatus === "CANCELLED").length;
+  const todayFailed = todayOrders.filter(o => o.printStatus === "FAILED").length;
+
+  const revenueTotal = todayOrders.filter(o => o.printStatus === "COMPLETED").reduce((sum, o) => sum + o.totalPrice, 0);
+  const revenueOnline = todayOrders.filter(o => o.printStatus === "COMPLETED" && o.paymentStatus === "PAID").reduce((sum, o) => sum + o.totalPrice, 0);
+  const revenuePending = todayOrders.filter(o => o.printStatus === "COMPLETED" && o.paymentStatus !== "PAID").reduce((sum, o) => sum + o.totalPrice, 0);
 
   // Filtered orders logic
   const filteredOrders = orders.filter((order) => {
@@ -202,9 +251,29 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
               {/* Editorial Title & Controls Row */}
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-[#E2E2E2] pb-6">
                 <div>
-                  <h1 className="text-3xl sm:text-4xl font-extrabold text-[#111111] tracking-tight">
-                    {activeTab === "HISTORY" ? "Order History" : "Orders Queue"}
-                  </h1>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-[#111111] tracking-tight">
+                      {activeTab === "HISTORY" ? "Order History" : "Orders Queue"}
+                    </h1>
+                    
+                    {/* Background Agent Status Indicator */}
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-[#E2E2E2] rounded-full shadow-sm text-sm font-medium w-fit">
+                      {agentState.isRunning ? (
+                        <>
+                          <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                          </span>
+                          <span className="text-gray-700">Agent Connected</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                          <span className="text-gray-700">Agent Disconnected</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                   <p className="text-base text-[#6B6B6B] mt-1 font-medium">
                     {activeTab === "HISTORY"
                       ? "Archived completed and cancelled print requests"
@@ -214,14 +283,59 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
 
                 {/* Search Bar (52px height) */}
                 <div className="relative w-full md:w-80">
-                  <Search className="w-5 h-5 text-neutral-400 absolute left-4 top-3.5" />
+                  <Search className="w-5 h-5 text-neutral-400 pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     placeholder="Search file, order #..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input-field pl-12 h-12 text-sm"
+                    className="input-field input-with-icon text-sm"
                   />
+                </div>
+              </div>
+
+              {/* Business Overview & Monitoring Dashboard */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Today's Overview */}
+                <div className="bg-white rounded-2xl border border-[#E2E2E2] p-6 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-[#6B6B6B] uppercase tracking-wider">Today's Overview</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Received</p>
+                      <p className="text-2xl font-extrabold text-[#111111]">{todayReceived}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Printed</p>
+                      <p className="text-2xl font-extrabold text-blue-600">{todayPrinted}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Declined</p>
+                      <p className="text-2xl font-extrabold text-neutral-600">{todayDeclined}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Failed</p>
+                      <p className="text-2xl font-extrabold text-rose-600">{todayFailed}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revenue Summary */}
+                <div className="bg-white rounded-2xl border border-[#E2E2E2] p-6 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-[#6B6B6B] uppercase tracking-wider">Revenue Summary</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Total</p>
+                      <p className="text-2xl font-extrabold text-emerald-600">₹{revenueTotal.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Online</p>
+                      <p className="text-2xl font-extrabold text-[#111111]">₹{revenueOnline.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B6B6B] font-semibold mb-1">Pay at Shop</p>
+                      <p className="text-2xl font-extrabold text-[#111111]">₹{revenuePending.toFixed(2)}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -387,8 +501,8 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
       {/* QR Code Printable Modal */}
       {showQRModal && (
         <QRCodeModal
-          shopName={user?.shopName || "QuickPrint Jamshedpur"}
-          shopSlug={user?.shopSlug || "quickprint"}
+          shopName={user?.shopName || ""}
+          shopSlug={user?.shopSlug || ""}
           onClose={() => setShowQRModal(false)}
         />
       )}

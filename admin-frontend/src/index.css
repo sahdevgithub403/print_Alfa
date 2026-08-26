@@ -125,9 +125,13 @@ button:active, a:active {
   @apply min-h-[44px] h-11 px-5 bg-white hover:bg-neutral-100 border border-[#D8D8D8] text-[#111111] font-semibold text-sm rounded-lg transition-all flex items-center justify-center gap-2 select-none tracking-tight;
 }
 
-/* Custom Input Field System (52px height) */
+/* Custom Input Field System (Standardized) */
 .input-field {
-  @apply w-full h-[52px] px-4 bg-white border border-[#E2E2E2] rounded-xl text-base text-[#111111] placeholder-neutral-400 outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition-all;
+  @apply w-full h-12 px-4 py-0 bg-white border border-[#E2E2E2] rounded-lg text-base leading-normal text-[#111111] placeholder-neutral-400 outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition-all;
+}
+
+.input-with-icon {
+  @apply pl-12;
 }
 
 /* Status Chips */

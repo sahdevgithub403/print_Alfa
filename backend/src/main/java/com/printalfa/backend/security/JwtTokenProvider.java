@@ -24,28 +24,43 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(Authentication authentication) {
+        return generateTokenWithSession(authentication, null);
+    }
+
+    public String generateTokenWithSession(Authentication authentication, String sessionId) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(userPrincipal.getUsername())
                 .claim("shopId", userPrincipal.getShopId() != null ? userPrincipal.getShopId().toString() : null)
                 .claim("role", userPrincipal.getRole())
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(getSigningKey())
-                .compact();
+                .signWith(getSigningKey());
+                
+        if (sessionId != null) {
+            builder.claim("sessionId", sessionId);
+        }
+
+        return builder.compact();
     }
 
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parser()
+        return getClaimsFromToken(token).getSubject();
+    }
+
+    public String getSessionIdFromToken(String token) {
+        return getClaimsFromToken(token).get("sessionId", String.class);
+    }
+
+    private Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
-        return claims.getSubject();
     }
 
     public boolean validateToken(String authToken) {

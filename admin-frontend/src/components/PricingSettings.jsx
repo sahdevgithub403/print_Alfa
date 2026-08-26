@@ -113,7 +113,7 @@ export const PricingSettings = () => {
                 B&W Single Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -133,7 +133,7 @@ export const PricingSettings = () => {
                 B&W Double Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -153,7 +153,7 @@ export const PricingSettings = () => {
                 Color Single Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -173,7 +173,7 @@ export const PricingSettings = () => {
                 Color Double Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -202,7 +202,7 @@ export const PricingSettings = () => {
                 B&W Single Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -222,7 +222,7 @@ export const PricingSettings = () => {
                 B&W Double Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -242,7 +242,7 @@ export const PricingSettings = () => {
                 Color Single Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -262,7 +262,7 @@ export const PricingSettings = () => {
                 Color Double Side
               </label>
               <div className="relative w-36">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input
@@ -301,7 +301,7 @@ export const PricingSettings = () => {
                 </p>
               </div>
               <div className="relative w-36 shrink-0">
-                <span className="absolute left-3.5 top-3 text-sm font-bold text-neutral-400">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-400 pointer-events-none">
                   ₹
                 </span>
                 <input

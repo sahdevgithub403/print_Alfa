@@ -55,7 +55,7 @@ export const TopHeader = ({
           {/* Search bar */}
           {(activeTab === "ORDERS" || activeTab === "HISTORY") && (
             <div className="relative w-44 sm:w-72">
-              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+              <Search className="w-4 h-4 text-neutral-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search file, order #..."

@@ -29,7 +29,7 @@ export const CustomerShopPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const slug = shopSlug || "quickprint";
+      const slug = shopSlug || "";
       const shopData = await getShopBySlug(slug);
       setShop(shopData);
     } catch (err) {

@@ -112,7 +112,7 @@ export const SettingsView = ({ user }) => {
             <input
               type="text"
               readOnly
-              value={user?.shopName || "QuickPrint Jamshedpur"}
+              value={user?.shopName || ""}
               className="input-field bg-neutral-50 cursor-not-allowed text-base font-bold"
             />
           </div>
@@ -124,7 +124,7 @@ export const SettingsView = ({ user }) => {
             <input
               type="text"
               readOnly
-              value={user?.shopSlug || "quickprint"}
+              value={user?.shopSlug || ""}
               className="input-field bg-neutral-50 cursor-not-allowed text-base font-bold"
             />
           </div>
@@ -134,12 +134,12 @@ export const SettingsView = ({ user }) => {
               Admin Account Email
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-neutral-400 absolute left-4 top-4" />
+              <Mail className="w-4 h-4 text-neutral-400 pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 readOnly
-                value={user?.email || "admin@quickprint.com"}
-                className="input-field pl-11 bg-neutral-50 cursor-not-allowed text-base font-bold"
+                value={user?.email || ""}
+                className="input-field input-with-icon bg-neutral-50 cursor-not-allowed font-bold"
               />
             </div>
           </div>
@@ -149,12 +149,12 @@ export const SettingsView = ({ user }) => {
               Account Role
             </label>
             <div className="relative">
-              <Shield className="w-4 h-4 text-neutral-400 absolute left-4 top-4" />
+              <Shield className="w-4 h-4 text-neutral-400 pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 readOnly
                 value={user?.role || "SHOP_ADMIN"}
-                className="input-field pl-11 bg-neutral-50 cursor-not-allowed text-base font-bold"
+                className="input-field input-with-icon bg-neutral-50 cursor-not-allowed font-bold"
               />
             </div>
           </div>

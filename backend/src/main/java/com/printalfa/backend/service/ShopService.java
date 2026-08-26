@@ -16,10 +16,61 @@ public class ShopService {
 
     private final ShopRepository shopRepository;
     private final ShopPricingRepository shopPricingRepository;
+    private final com.printalfa.backend.repository.UserRepository userRepository;
 
-    public ShopService(ShopRepository shopRepository, ShopPricingRepository shopPricingRepository) {
+    public ShopService(ShopRepository shopRepository, ShopPricingRepository shopPricingRepository, com.printalfa.backend.repository.UserRepository userRepository) {
         this.shopRepository = shopRepository;
         this.shopPricingRepository = shopPricingRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public ShopDTO createShop(UUID userId, ShopDTO request) {
+        com.printalfa.backend.entity.User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.getShop() != null) {
+            throw new IllegalArgumentException("User already has a shop");
+        }
+
+        String baseSlug = request.getName().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+        String slug = baseSlug;
+        int counter = 1;
+        while (shopRepository.existsBySlug(slug)) {
+            slug = baseSlug + "-" + counter++;
+        }
+
+        Shop shop = new Shop();
+        shop.setName(request.getName());
+        shop.setSlug(slug);
+        shop.setOwnerName(request.getOwnerName());
+        shop.setPhone(request.getPhone());
+        shop.setAddress(request.getAddress());
+        shop.setCity(request.getCity());
+        shop.setState(request.getState());
+        shop.setPincode(request.getPincode());
+        shop.setLogoUrl(request.getLogoUrl());
+
+        Shop savedShop = shopRepository.save(shop);
+
+        ShopPricing pricing = new ShopPricing(
+                savedShop,
+                new java.math.BigDecimal("2.00"),  // BW A4 Single
+                new java.math.BigDecimal("3.00"),  // BW A4 Double
+                new java.math.BigDecimal("10.00"), // Color A4 Single
+                new java.math.BigDecimal("15.00"), // Color A4 Double
+                new java.math.BigDecimal("5.00"),  // BW A3 Single
+                new java.math.BigDecimal("8.00"),  // BW A3 Double
+                new java.math.BigDecimal("20.00"), // Color A3 Single
+                new java.math.BigDecimal("35.00"), // Color A3 Double
+                new java.math.BigDecimal("50.00")  // Passport Price
+        );
+        shopPricingRepository.save(pricing);
+
+        user.setShop(savedShop);
+        userRepository.save(user);
+
+        return mapShopToDTO(savedShop);
     }
 
     @Transactional(readOnly = true)
@@ -47,6 +98,10 @@ public class ShopService {
         if (request.getAddress() != null) shop.setAddress(request.getAddress());
         if (request.getPhone() != null) shop.setPhone(request.getPhone());
         if (request.getLogoUrl() != null) shop.setLogoUrl(request.getLogoUrl());
+        if (request.getOwnerName() != null) shop.setOwnerName(request.getOwnerName());
+        if (request.getCity() != null) shop.setCity(request.getCity());
+        if (request.getState() != null) shop.setState(request.getState());
+        if (request.getPincode() != null) shop.setPincode(request.getPincode());
 
         Shop updated = shopRepository.save(shop);
         return mapShopToDTO(updated);
@@ -79,7 +134,7 @@ public class ShopService {
     }
 
     public ShopDTO mapShopToDTO(Shop shop) {
-        return new ShopDTO(shop.getId(), shop.getName(), shop.getSlug(), shop.getAddress(), shop.getPhone(), shop.getLogoUrl(), shop.getApiKey());
+        return new ShopDTO(shop.getId(), shop.getName(), shop.getSlug(), shop.getAddress(), shop.getPhone(), shop.getLogoUrl(), shop.getApiKey(), shop.getOwnerName(), shop.getCity(), shop.getState(), shop.getPincode());
     }
 
     public ShopPricingDTO mapPricingToDTO(ShopPricing pricing) {

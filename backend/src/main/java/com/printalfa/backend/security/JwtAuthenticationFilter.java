@@ -17,10 +17,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService customUserDetailsService;
+    private final com.printalfa.backend.repository.UserSessionRepository userSessionRepository;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService customUserDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService customUserDetailsService, com.printalfa.backend.repository.UserSessionRepository userSessionRepository) {
         this.tokenProvider = tokenProvider;
         this.customUserDetailsService = customUserDetailsService;
+        this.userSessionRepository = userSessionRepository;
     }
 
     @Override
@@ -30,6 +32,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+                String sessionId = tokenProvider.getSessionIdFromToken(jwt);
+                if (sessionId != null) {
+                    com.printalfa.backend.entity.UserSession userSession = userSessionRepository.findBySessionToken(sessionId).orElse(null);
+                    if (userSession == null || userSession.getStatus() != com.printalfa.backend.enums.SessionStatus.ACTIVE || userSession.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+                        throw new RuntimeException("Session is invalid or expired");
+                    }
+                    request.setAttribute("USER_SESSION_ID", userSession.getId());
+                }
+
                 String email = tokenProvider.getEmailFromToken(jwt);
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 

@@ -4,12 +4,20 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
+  base: './',
+
   plugins: [react(), tailwindcss()],
+
+  define: {
+    global: 'globalThis',
+  },
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
+
   server: {
     port: 5174,
     proxy: {

@@ -175,30 +175,18 @@ export const OrderCard = ({
               </button>
             )}
 
+            {/* Automated status display replaces manual action buttons */}
             {order.printStatus === "PENDING" && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateStatus(order.id, "PRINTING");
-                }}
-                className="btn-primary-sm min-h-[44px] h-11 text-sm px-5"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Print All</span>
-              </button>
+              <span className="text-sm font-semibold text-neutral-500 flex items-center gap-1 px-3 py-1 bg-neutral-50 rounded-lg border border-neutral-200">
+                <span>Waiting for Agent</span>
+              </span>
             )}
 
             {order.printStatus === "PRINTING" && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateStatus(order.id, "COMPLETED");
-                }}
-                className="btn-primary-sm min-h-[44px] h-11 text-sm px-5"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Complete</span>
-              </button>
+              <span className="text-sm font-semibold text-blue-700 flex items-center gap-1 px-3 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                <span>Processing...</span>
+              </span>
             )}
 
             {order.printStatus === "COMPLETED" && (

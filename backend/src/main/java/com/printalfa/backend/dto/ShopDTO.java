@@ -10,10 +10,14 @@ public class ShopDTO {
     private String phone;
     private String logoUrl;
     private String apiKey;
+    private String ownerName;
+    private String city;
+    private String state;
+    private String pincode;
 
     public ShopDTO() {}
 
-    public ShopDTO(UUID id, String name, String slug, String address, String phone, String logoUrl, String apiKey) {
+    public ShopDTO(UUID id, String name, String slug, String address, String phone, String logoUrl, String apiKey, String ownerName, String city, String state, String pincode) {
         this.id = id;
         this.name = name;
         this.slug = slug;
@@ -21,6 +25,10 @@ public class ShopDTO {
         this.phone = phone;
         this.logoUrl = logoUrl;
         this.apiKey = apiKey;
+        this.ownerName = ownerName;
+        this.city = city;
+        this.state = state;
+        this.pincode = pincode;
     }
 
     public UUID getId() { return id; }
@@ -43,4 +51,16 @@ public class ShopDTO {
 
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+
+    public String getOwnerName() { return ownerName; }
+    public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
+
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+
+    public String getPincode() { return pincode; }
+    public void setPincode(String pincode) { this.pincode = pincode; }
 }

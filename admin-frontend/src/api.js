@@ -9,11 +9,23 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const token = localStorage.getItem("admin_jwt_token");
   if (token && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Add device headers for session management
+  if (window.electronAPI && window.electronAPI.getDeviceId) {
+    config.headers["X-Device-ID"] = await window.electronAPI.getDeviceId();
+    config.headers["X-Device-Name"] = await window.electronAPI.getDeviceName();
+    config.headers["X-App-Version"] = await window.electronAPI.getAppVersion();
+  } else {
+    config.headers["X-Device-ID"] = "browser-dev-123";
+    config.headers["X-Device-Name"] = "Browser (Dev)";
+    config.headers["X-App-Version"] = "1.0.0-dev";
+  }
+  
   return config;
 });
 
@@ -31,6 +43,36 @@ api.interceptors.response.use(
 
 export const loginAdmin = async (email, password) => {
   const response = await api.post("/auth/login", { email, password });
+  return response.data.data;
+};
+
+export const signupAdmin = async (name, phone, email, password, confirmPassword) => {
+  const response = await api.post("/auth/signup", { name, phone, email, password, confirmPassword });
+  return response.data.data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data.data;
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const response = await api.post("/auth/reset-password", { token, newPassword });
+  return response.data.data;
+};
+
+export const getShopProfile = async () => {
+  const response = await api.get("/admin/shop");
+  return response.data.data;
+};
+
+export const createShop = async (shopData) => {
+  const response = await api.post("/admin/shop/create", shopData);
+  return response.data.data;
+};
+
+export const sendHeartbeat = async () => {
+  const response = await api.post("/print-agent/heartbeat");
   return response.data.data;
 };
 

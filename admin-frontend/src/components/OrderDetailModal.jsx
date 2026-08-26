@@ -295,44 +295,19 @@ export const OrderDetailModal = ({
                         </div>
                       </div>
 
-                      {/* Item Quick Action Controls */}
+                      {/* Item Quick Action Controls Removed for Auto Workflow */}
                       <div className="flex items-center justify-end gap-2 pt-1">
                         {item.printStatus === "PENDING" && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdateItemStatus(item.id, "PRINTING")
-                            }
-                            disabled={isUpdating}
-                            className="btn-primary-sm h-9 text-xs px-4"
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Printer className="w-3.5 h-3.5" />
-                            )}
-                            <span>Start Printing Item</span>
-                          </button>
+                          <span className="text-xs font-bold text-neutral-500 flex items-center gap-1">
+                            <span>Waiting</span>
+                          </span>
                         )}
-
                         {item.printStatus === "PRINTING" && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdateItemStatus(item.id, "COMPLETED")
-                            }
-                            disabled={isUpdating}
-                            className="btn-primary-sm h-9 text-xs px-4"
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            )}
-                            <span>Mark Item Ready</span>
-                          </button>
+                          <span className="text-xs font-bold text-blue-700 flex items-center gap-1">
+                            <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                            <span>Printing</span>
+                          </span>
                         )}
-
                         {item.printStatus === "COMPLETED" && (
                           <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
                             <Check className="w-4 h-4 text-emerald-600" />
@@ -431,32 +406,17 @@ export const OrderDetailModal = ({
           )}
 
           <div className="flex items-center gap-3 ml-auto">
+            {/* Manual print controls removed for automated workflow */}
             {order.printStatus === "PENDING" && (
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateStatus(order.id, "PRINTING");
-                  onClose();
-                }}
-                className="btn-primary min-h-[52px]"
-              >
-                <Printer className="w-5 h-5" />
-                <span>Start Printing All</span>
-              </button>
+              <div className="px-4 py-3 bg-neutral-100 rounded-lg text-sm text-neutral-600 font-medium">
+                Waiting for Agent to Print
+              </div>
             )}
-
+            
             {order.printStatus === "PRINTING" && (
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateStatus(order.id, "COMPLETED");
-                  onClose();
-                }}
-                className="btn-primary min-h-[52px]"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>Mark Order Completed</span>
-              </button>
+              <div className="px-4 py-3 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Processing Automatically...
+              </div>
             )}
 
             <button

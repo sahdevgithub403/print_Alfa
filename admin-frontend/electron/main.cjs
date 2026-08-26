@@ -2,6 +2,24 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, Notification } = require('elect
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
+
+// Generate or retrieve persistent Device ID
+const deviceIdPath = path.join(app.getPath('userData'), 'device_id.json');
+let deviceId = '';
+
+try {
+  if (fs.existsSync(deviceIdPath)) {
+    const data = JSON.parse(fs.readFileSync(deviceIdPath, 'utf8'));
+    deviceId = data.deviceId;
+  } else {
+    deviceId = crypto.randomUUID();
+    fs.writeFileSync(deviceIdPath, JSON.stringify({ deviceId }));
+  }
+} catch (e) {
+  console.error("Error managing device ID:", e);
+  deviceId = crypto.randomUUID();
+}
 
 let mainWindow;
 let tray;
@@ -47,7 +65,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: false
+      webSecurity: false,
+      backgroundThrottling: false
     },
     icon: path.join(__dirname, 'icon.png')
   });
@@ -72,10 +91,14 @@ function createWindow() {
 function createTray() {
   tray = new Tray(path.join(__dirname, 'icon.png'));
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open Admin', click: () => { mainWindow.show(); } },
-    { label: 'Exit', click: () => { app.isQuiting = true; app.quit(); } }
+    { label: 'Open Dashboard', click: () => { mainWindow.show(); } },
+    { type: 'separator' },
+    { label: 'Agent Status: Connected', enabled: false },
+    { label: 'Printer Status: Ready', enabled: false },
+    { type: 'separator' },
+    { label: 'Exit PrintAlfa', click: () => { app.isQuiting = true; app.quit(); } }
   ]);
-  tray.setToolTip('XeroxShop Admin');
+  tray.setToolTip('PrintAlfa Admin Agent');
   tray.setContextMenu(contextMenu);
   
   tray.on('click', () => {
@@ -110,6 +133,11 @@ app.setLoginItemSettings({
   openAtLogin: true,
   path: app.getPath('exe')
 });
+
+// ==================== DEVICE APIs ====================
+ipcMain.handle('get-device-id', () => deviceId);
+ipcMain.handle('get-device-name', () => os.hostname());
+ipcMain.handle('get-app-version', () => app.getVersion());
 
 // ==================== IPC HANDLERS FOR PRINTING ====================
 
@@ -307,6 +335,58 @@ ipcMain.handle('print-document', async (event, { base64Data, originalFileName, c
 });
 
 // Notifications
+let notificationWindow = null;
+
 ipcMain.on('show-notification', (event, { title, body }) => {
   new Notification({ title, body, icon: path.join(__dirname, 'icon.png') }).show();
+});
+
+ipcMain.on('show-order-notification', (event, { order }) => {
+  if (notificationWindow) {
+    notificationWindow.destroy();
+  }
+
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+  const popupWidth = 360;
+  const popupHeight = 320;
+
+  notificationWindow = new BrowserWindow({
+    width: popupWidth,
+    height: popupHeight,
+    x: width - popupWidth - 20,
+    y: height - popupHeight - 20,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs')
+    }
+  });
+
+  const isDev = process.env.NODE_ENV === 'development';
+  const url = isDev 
+    ? `http://localhost:5174/#/notification?order=\${encodeURIComponent(JSON.stringify(order))}`
+    : `file://\${path.join(__dirname, '../dist/index.html')}#/notification?order=\${encodeURIComponent(JSON.stringify(order))}`;
+
+  notificationWindow.loadURL(url);
+
+  notificationWindow.on('closed', () => {
+    notificationWindow = null;
+  });
+});
+
+ipcMain.on('order-action-result', (event, { orderId, action }) => {
+  if (notificationWindow) {
+    notificationWindow.destroy();
+    notificationWindow = null;
+  }
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('order-action-result', { orderId, action });
+  }
 });

@@ -61,7 +61,7 @@ export const Sidebar = ({
           </div>
           <div>
             <h1 className="text-base font-extrabold text-[#111111] leading-tight">
-              {user?.shopName || "QuickPrint Jamshedpur"}
+              {user?.shopName || "Loading Shop..."}
             </h1>
             <p className="text-xs text-[#6B6B6B] font-medium">Shop Admin</p>
           </div>
@@ -173,10 +173,10 @@ export const Sidebar = ({
                 <Store className="w-5 h-5 text-neutral-600 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#111111] truncate">
-                    {user?.shopName || "QuickPrint"}
+                    {user?.shopName || ""}
                   </p>
-                  <p className="text-[11px] text-[#6B6B6B] truncate">
-                    {user?.email || "admin@quickprint.com"}
+                  <p className="text-xs text-[#6B6B6B] truncate">
+                    {user?.email || ""}
                   </p>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export const Sidebar = ({
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-extrabold text-[#111111] truncate leading-tight tracking-tight">
-                {user?.shopName || "QuickPrint Jamshedpur"}
+                {user?.shopName || "Loading..."}
               </h1>
               <p className="text-xs text-[#6B6B6B] font-medium truncate">
                 Shop Admin Portal
@@ -299,10 +299,10 @@ export const Sidebar = ({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-[#111111] truncate">
-                {user?.shopName || "QuickPrint"}
+                {user?.shopName || ""}
               </p>
-              <p className="text-[11px] text-[#6B6B6B] truncate">
-                {user?.email || "admin@quickprint.com"}
+              <p className="text-sm text-[#6B6B6B] truncate">
+                {user?.email || ""}
               </p>
             </div>
           </div>

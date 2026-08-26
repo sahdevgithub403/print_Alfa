@@ -30,15 +30,18 @@ public class PrintAgentController {
     private final FileStorageService fileStorageService;
     private final DocumentRepository documentRepository;
     private final PrintOrderRepository printOrderRepository;
+    private final com.printalfa.backend.repository.UserSessionRepository userSessionRepository;
 
     public PrintAgentController(PrintService printService,
                                 FileStorageService fileStorageService,
                                 DocumentRepository documentRepository,
-                                PrintOrderRepository printOrderRepository) {
+                                PrintOrderRepository printOrderRepository,
+                                com.printalfa.backend.repository.UserSessionRepository userSessionRepository) {
         this.printService = printService;
         this.fileStorageService = fileStorageService;
         this.documentRepository = documentRepository;
         this.printOrderRepository = printOrderRepository;
+        this.userSessionRepository = userSessionRepository;
     }
 
     private UUID extractShopId(Authentication authentication) {
@@ -119,6 +122,29 @@ public class PrintAgentController {
         UUID authShopId = extractShopId(authentication);
         PrintJobDTO job = printService.retryJobWithShopCheck(jobId, authShopId);
         return ResponseEntity.ok(ApiResponse.success("Print job requeued", job));
+    }
+
+    @PostMapping("/heartbeat")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> heartbeat(
+            Authentication authentication,
+            jakarta.servlet.http.HttpServletRequest request,
+            @RequestBody(required = false) Map<String, String> body) {
+        UUID authShopId = extractShopId(authentication);
+        
+        UUID sessionId = (UUID) request.getAttribute("USER_SESSION_ID");
+        if (sessionId != null) {
+            userSessionRepository.findById(sessionId).ifPresent(session -> {
+                session.setLastHeartbeat(java.time.LocalDateTime.now());
+                userSessionRepository.save(session);
+            });
+        }
+        
+        Map<String, Object> response = Map.of(
+            "status", "ok",
+            "serverTime", java.time.LocalDateTime.now().toString(),
+            "sessionValid", true
+        );
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/documents/{documentId}/download")

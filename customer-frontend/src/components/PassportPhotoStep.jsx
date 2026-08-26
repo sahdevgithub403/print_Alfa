@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import Cropper from "react-easy-crop";
+import { ArrowLeft, UploadCloud } from "lucide-react";
 import { uploadDocument, calculatePrice } from "../api";
 
 export const PassportPhotoStep = ({ shopId, onComplete, onBack }) => {

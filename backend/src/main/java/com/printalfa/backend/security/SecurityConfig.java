@@ -35,21 +35,24 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final JwtTokenProvider tokenProvider;
     private final com.printalfa.backend.repository.ShopRepository shopRepository;
+    private final com.printalfa.backend.repository.UserSessionRepository userSessionRepository;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
     public SecurityConfig(CustomUserDetailsService userDetailsService,
                           JwtTokenProvider tokenProvider,
-                          com.printalfa.backend.repository.ShopRepository shopRepository) {
+                          com.printalfa.backend.repository.ShopRepository shopRepository,
+                          com.printalfa.backend.repository.UserSessionRepository userSessionRepository) {
         this.userDetailsService = userDetailsService;
         this.tokenProvider = tokenProvider;
         this.shopRepository = shopRepository;
+        this.userSessionRepository = userSessionRepository;
     }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+        return new JwtAuthenticationFilter(tokenProvider, userDetailsService, userSessionRepository);
     }
 
     @Bean
