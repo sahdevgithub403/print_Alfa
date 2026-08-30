@@ -409,7 +409,7 @@ export const OrderDetailModal = ({
             {/* Manual print controls removed for automated workflow */}
             {order.printStatus === "PENDING" && (
               <div className="px-4 py-3 bg-neutral-100 rounded-lg text-sm text-neutral-600 font-medium">
-                Waiting for Agent to Print
+                Waiting to Print
               </div>
             )}
             

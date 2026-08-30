@@ -47,7 +47,7 @@ public class ShopPricing {
     @Column(nullable = false)
     private BigDecimal colorA3Double;
 
-    @Column(nullable = false, columnDefinition = "DECIMAL(10,2) DEFAULT '50.00'")
+    @Column(nullable = false, precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal passportPrice = new BigDecimal("50.00");
 

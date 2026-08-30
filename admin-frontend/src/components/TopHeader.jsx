@@ -22,8 +22,8 @@ export const TopHeader = ({
         return "Shop Counter QR Code";
       case "SETTINGS":
         return "Shop Settings";
-      case "AGENT":
-        return "Windows Print Agent";
+      case "CLIENT":
+        return "PrintAlfa Print Client";
       default:
         return "Admin Dashboard";
     }

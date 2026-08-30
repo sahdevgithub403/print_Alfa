@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Printer } from "lucide-react";
 
 export const NotificationPopup = () => {
   const [order, setOrder] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     try {
@@ -17,6 +18,8 @@ export const NotificationPopup = () => {
   }, []);
 
   const handleAction = (action) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     if (order && window.electronAPI) {
       window.electronAPI.sendOrderActionResult(order.id, action);
     }
@@ -33,23 +36,32 @@ export const NotificationPopup = () => {
       
       <div className="flex-1 p-5 flex flex-col gap-3">
         <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-          <span className="text-slate-400 text-sm">Order ID</span>
-          <span className="font-mono font-medium">{order.orderNumber || `#${order.id}`}</span>
-        </div>
-        
-        <div className="flex justify-between items-center border-b border-slate-700 pb-2">
           <span className="text-slate-400 text-sm">Customer</span>
           <span className="font-medium">{order.customerName || 'Walk-in'}</span>
         </div>
         
         <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-          <span className="text-slate-400 text-sm">Documents</span>
-          <span className="font-medium">{order.items?.length || 1} file(s)</span>
+          <span className="text-slate-400 text-sm">File</span>
+          <span className="font-mono font-medium truncate max-w-[150px]" title={order.document?.originalFileName || order.items?.[0]?.document?.originalFileName || 'Document'}>
+            {order.document?.originalFileName || order.items?.[0]?.document?.originalFileName || 'Document'}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+          <span className="text-slate-400 text-sm">Print type</span>
+          <span className="font-medium text-amber-400">
+            {order.printType || order.items?.[0]?.printType || order.colorMode || 'PRINT'}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+          <span className="text-slate-400 text-sm">Pages</span>
+          <span className="font-medium">{order.pages || order.items?.[0]?.document?.pageCount || 1}</span>
         </div>
         
         <div className="flex justify-between items-center border-b border-slate-700 pb-2">
           <span className="text-slate-400 text-sm">Amount</span>
-          <span className="font-bold text-green-400">₹{order.totalAmount || '0'}</span>
+          <span className="font-bold text-green-400">₹{order.totalAmount || order.totalPrice || '0'}</span>
         </div>
       </div>
       
@@ -62,11 +74,11 @@ export const NotificationPopup = () => {
           DECLINE
         </button>
         <button 
-          onClick={() => handleAction('ACCEPT')}
+          onClick={() => handleAction('ACCEPT_AND_PRINT')}
           className="flex items-center justify-center gap-2 py-2 px-4 rounded font-medium bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/50"
         >
           <CheckCircle className="w-4 h-4" />
-          ACCEPT
+          ACCEPT & PRINT
         </button>
       </div>
     </div>

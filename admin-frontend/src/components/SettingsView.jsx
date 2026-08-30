@@ -13,18 +13,18 @@ import {
   FileText,
   Terminal,
 } from "lucide-react";
-import { printAgentWorker } from "../services/printAgentWorker";
+import { printClient } from "../services/printClient";
 
 export const SettingsView = ({ user }) => {
-  const [agentState, setAgentState] = useState(printAgentWorker.getState());
+  const [clientState, setClientState] = useState(printClient.getState());
   const [printers, setPrinters] = useState([]);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
   const [testingPrint, setTestingPrint] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = printAgentWorker.subscribe((state) => {
-      setAgentState(state);
+    const unsubscribe = printClient.subscribe((state) => {
+      setClientState(state);
     });
 
     fetchPrinters();
@@ -37,10 +37,15 @@ export const SettingsView = ({ user }) => {
       if (window.electronAPI?.getPrinters) {
         const list = await window.electronAPI.getPrinters();
         setPrinters(list || []);
-        if (list && list.length > 0 && !agentState.selectedPrinter) {
+        if (list && list.length > 0) {
           const defaultPrinter = list.find((p) => p.isDefault) || list[0];
           if (defaultPrinter) {
-            printAgentWorker.setPrinter(defaultPrinter.name);
+            let updates = {};
+            if (!clientState.mainPrinter) updates.mainPrinter = defaultPrinter.name;
+            if (!clientState.colorPrinter) updates.colorPrinter = defaultPrinter.name;
+            if (Object.keys(updates).length > 0) {
+              printClient.setPrintersConfig(updates);
+            }
           }
         }
       } else {
@@ -58,27 +63,30 @@ export const SettingsView = ({ user }) => {
     }
   };
 
-  const handleSelectPrinter = (e) => {
-    const name = e.target.value;
-    printAgentWorker.setPrinter(name);
+  const handleSelectMainPrinter = (e) => {
+    printClient.setPrintersConfig({ mainPrinter: e.target.value });
   };
 
-  const handleToggleAutoPrint = () => {
-    printAgentWorker.setAutoPrint(!agentState.autoPrintEnabled);
+  const handleSelectColorPrinter = (e) => {
+    printClient.setPrintersConfig({ colorPrinter: e.target.value });
   };
 
-  const handleTestPrint = async () => {
-    if (!agentState.selectedPrinter) {
+  const handleTestPrint = async (printerType) => {
+    const printerName = printerType === 'main' ? clientState.mainPrinter : clientState.colorPrinter;
+    if (!printerName) {
       setTestResult({ success: false, message: "Please select a printer first." });
       return;
     }
     setTestingPrint(true);
     setTestResult(null);
     try {
-      const res = await printAgentWorker.testPrint(agentState.selectedPrinter);
+      const res = await printClient.testPrint(printerName);
+      const isVirtual = printerName.toLowerCase().includes("pdf") || printerName.toLowerCase().includes("onenote") || printerName.toLowerCase().includes("xps");
+      const warningMsg = isVirtual ? " (WARNING: This is a virtual Windows printer. Select a physical printer for physical printing.)" : "";
+      
       setTestResult({
         success: true,
-        message: res.message || `Test page successfully sent to ${agentState.selectedPrinter}`,
+        message: (res.message || `Test page successfully sent to ${printerName}`) + warningMsg,
       });
     } catch (err) {
       setTestResult({
@@ -161,13 +169,13 @@ export const SettingsView = ({ user }) => {
         </div>
       </div>
 
-      {/* Windows Physical Print Agent Configuration */}
+      {/* Windows Physical Print Client Configuration */}
       <div className="bg-white rounded-2xl border border-[#E2E2E2] p-8 space-y-6">
         <div className="border-b border-[#E2E2E2] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-[#111111] flex items-center gap-2.5">
               <Cpu className="w-5 h-5 text-[#111111]" />
-              <span>Windows Physical Print Agent</span>
+              <span>PrintAlfa Print Client</span>
             </h2>
             <p className="text-sm text-[#6B6B6B] mt-0.5">
               Direct physical printer spooler integration and automatic queue processing
@@ -175,36 +183,14 @@ export const SettingsView = ({ user }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleToggleAutoPrint}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                agentState.autoPrintEnabled
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : "bg-neutral-200 hover:bg-neutral-300 text-neutral-800"
-              }`}
-            >
-              {agentState.autoPrintEnabled ? (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Auto-Print: ACTIVE</span>
-                </>
-              ) : (
-                <>
-                  <Pause className="w-3.5 h-3.5" />
-                  <span>Auto-Print: PAUSED</span>
-                </>
-              )}
-            </button>
-
             <span
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border ${
-                agentState.isElectron
+                clientState.isElectron
                   ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                   : "bg-amber-50 text-amber-800 border-amber-200"
               }`}
             >
-              {agentState.isElectron ? (
+              {clientState.isElectron ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span>Native Spooler Ready</span>
@@ -222,57 +208,89 @@ export const SettingsView = ({ user }) => {
         {/* Printer Selection & Test Print */}
         <div className="bg-neutral-50 p-6 rounded-xl border border-[#E2E2E2] space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1 flex-1">
-              <label className="text-xs font-bold text-[#6B6B6B] uppercase flex items-center gap-2">
-                <Printer className="w-4 h-4 text-[#111111]" />
-                <span>Target Windows Printer</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={agentState.selectedPrinter || ""}
-                  onChange={handleSelectPrinter}
-                  disabled={loadingPrinters || printers.length === 0}
-                  className="input-field bg-white font-bold text-sm"
-                >
-                  <option value="" disabled>
-                    {loadingPrinters
-                      ? "Scanning Windows printers..."
-                      : printers.length === 0
-                      ? "No printers found"
-                      : "-- Select a Windows Printer --"}
-                  </option>
-                  {printers.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.name} {p.isDefault ? "(Default)" : ""}
+            <div className="space-y-4 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-neutral-200 pb-4">
+                <div className="space-y-1 flex-1">
+                  <label className="text-xs font-bold text-[#6B6B6B] uppercase flex items-center gap-2">
+                    <Printer className="w-4 h-4 text-[#111111]" />
+                    <span>Main All-Print Printer (B/W, Xerox, Documents)</span>
+                  </label>
+                  <select
+                    value={clientState.mainPrinter || ""}
+                    onChange={handleSelectMainPrinter}
+                    disabled={loadingPrinters || printers.length === 0}
+                    className="input-field bg-white font-bold text-sm w-full"
+                  >
+                    <option value="" disabled>
+                      {loadingPrinters ? "Scanning..." : printers.length === 0 ? "No printers found" : "-- Select Main Printer --"}
                     </option>
-                  ))}
-                </select>
-
+                    {printers.map((p) => {
+                      const isVirtual = p.name.toLowerCase().includes("pdf") || p.name.toLowerCase().includes("onenote") || p.name.toLowerCase().includes("xps");
+                      return (
+                        <option key={p.name} value={p.name}>
+                          {p.name} {p.isDefault ? "(Default)" : ""} {isVirtual ? "[Virtual Printer]" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
                 <button
                   type="button"
-                  onClick={fetchPrinters}
-                  disabled={loadingPrinters}
-                  title="Rescan Windows Printers"
-                  className="p-3 bg-white border border-[#E2E2E2] rounded-xl hover:bg-neutral-100 transition-colors"
+                  onClick={() => handleTestPrint('main')}
+                  disabled={testingPrint || !clientState.mainPrinter}
+                  className="px-4 py-2.5 bg-[#111111] hover:bg-black text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-sm whitespace-nowrap h-fit"
                 >
-                  <RefreshCw
-                    className={`w-4 h-4 text-neutral-600 ${
-                      loadingPrinters ? "animate-spin" : ""
-                    }`}
-                  />
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Test Main</span>
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div className="space-y-1 flex-1">
+                  <label className="text-xs font-bold text-[#6B6B6B] uppercase flex items-center gap-2">
+                    <Printer className="w-4 h-4 text-emerald-600" />
+                    <span>Color & Photo Printer (Color, Passports)</span>
+                  </label>
+                  <select
+                    value={clientState.colorPrinter || ""}
+                    onChange={handleSelectColorPrinter}
+                    disabled={loadingPrinters || printers.length === 0}
+                    className="input-field bg-white font-bold text-sm w-full"
+                  >
+                    <option value="" disabled>
+                      {loadingPrinters ? "Scanning..." : printers.length === 0 ? "No printers found" : "-- Select Color Printer --"}
+                    </option>
+                    {printers.map((p) => {
+                      const isVirtual = p.name.toLowerCase().includes("pdf") || p.name.toLowerCase().includes("onenote") || p.name.toLowerCase().includes("xps");
+                      return (
+                        <option key={p.name} value={p.name}>
+                          {p.name} {p.isDefault ? "(Default)" : ""} {isVirtual ? "[Virtual Printer]" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTestPrint('color')}
+                  disabled={testingPrint || !clientState.colorPrinter}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-sm whitespace-nowrap h-fit"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Test Color</span>
                 </button>
               </div>
             </div>
 
-            <div className="flex items-end">
+            <div className="flex items-start">
               <button
                 type="button"
-                onClick={handleTestPrint}
-                disabled={testingPrint || !agentState.selectedPrinter}
-                className="px-5 py-3 bg-[#111111] hover:bg-black text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-sm"
+                onClick={fetchPrinters}
+                disabled={loadingPrinters}
+                title="Rescan Windows Printers"
+                className="p-3 bg-white border border-[#E2E2E2] rounded-xl hover:bg-neutral-100 transition-colors h-fit mt-5"
               >
-                <FileText className="w-4 h-4" />
-                <span>{testingPrint ? "Printing Test Page..." : "Send Test Print"}</span>
+                <RefreshCw className={`w-4 h-4 text-neutral-600 ${loadingPrinters ? "animate-spin" : ""}`} />
               </button>
             </div>
           </div>
@@ -296,9 +314,9 @@ export const SettingsView = ({ user }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-neutral-200 text-xs">
             <div>
-              <span className="text-[#6B6B6B] block">Agent Status:</span>
+              <span className="text-[#6B6B6B] block">Client Status:</span>
               <span className="font-bold text-[#111111] uppercase">
-                {agentState.status} {agentState.activeJobsCount > 0 ? `(${agentState.activeJobsCount} in-flight)` : ""}
+                {clientState.status} {clientState.activeJobsCount > 0 ? `(${clientState.activeJobsCount} in-flight)` : ""}
               </span>
             </div>
             <div>
@@ -324,17 +342,17 @@ export const SettingsView = ({ user }) => {
               <span>Real-Time Spooler & Queue Activity Log</span>
             </h3>
             <span className="text-xs text-[#888888]">
-              {agentState.logs.length} entries
+              {clientState.logs.length} entries
             </span>
           </div>
 
           <div className="bg-[#1e1e1e] text-neutral-200 p-4 rounded-xl font-mono text-xs max-h-48 overflow-y-auto space-y-1.5 border border-neutral-800 shadow-inner">
-            {agentState.logs.length === 0 ? (
+            {clientState.logs.length === 0 ? (
               <p className="text-neutral-500 italic">
                 No activity recorded yet. Print requests will log here in real time.
               </p>
             ) : (
-              agentState.logs.map((log) => (
+              clientState.logs.map((log) => (
                 <div key={log.id} className="flex items-start gap-2">
                   <span className="text-neutral-500 shrink-0">
                     [{log.timestamp}]

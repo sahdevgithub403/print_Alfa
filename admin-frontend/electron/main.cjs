@@ -23,7 +23,8 @@ try {
 
 let mainWindow;
 let tray;
-let selectedPrinterName = null;
+let mainPrinterName = null;
+let colorPrinterName = null;
 
 // Initialize secure spool directory
 const spoolDir = path.join(app.getPath('temp'), 'printalfa_spool');
@@ -65,7 +66,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
       backgroundThrottling: false
     },
     icon: path.join(__dirname, 'icon.png')
@@ -93,12 +95,12 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Open Dashboard', click: () => { mainWindow.show(); } },
     { type: 'separator' },
-    { label: 'Agent Status: Connected', enabled: false },
+    { label: 'Client Status: Connected', enabled: false },
     { label: 'Printer Status: Ready', enabled: false },
     { type: 'separator' },
     { label: 'Exit PrintAlfa', click: () => { app.isQuiting = true; app.quit(); } }
   ]);
-  tray.setToolTip('PrintAlfa Admin Agent');
+  tray.setToolTip('PrintAlfa Admin Client');
   tray.setContextMenu(contextMenu);
   
   tray.on('click', () => {
@@ -107,6 +109,31 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  const { session } = require('electron');
+  const isDev = process.env.NODE_ENV === 'development';
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    let csp = "default-src 'self'; " +
+              "script-src 'self'; " +
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+              "font-src 'self' https://fonts.gstatic.com; " +
+              "img-src 'self' data: file: https://api.qrserver.com; " +
+              "connect-src 'self' http://localhost:8085 ws://localhost:8085;";
+    if (isDev) {
+      csp = "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' http://localhost:5174; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://localhost:5174; " +
+            "font-src 'self' https://fonts.gstatic.com http://localhost:5174; " +
+            "img-src 'self' data: file: https://api.qrserver.com http://localhost:5174; " +
+            "connect-src 'self' http://localhost:8085 ws://localhost:8085 http://localhost:5174 ws://localhost:5174;";
+    }
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    });
+  });
+
   createWindow();
   try {
     createTray();
@@ -161,19 +188,20 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
-// 2. Selected printer persistence
-ipcMain.handle('get-selected-printer', async () => {
-  return selectedPrinterName;
+// 2. Selected printers persistence
+ipcMain.handle('get-printers-config', async () => {
+  return { mainPrinter: mainPrinterName, colorPrinter: colorPrinterName };
 });
 
-ipcMain.handle('set-selected-printer', async (event, printerName) => {
-  selectedPrinterName = printerName;
-  return { success: true, printerName: selectedPrinterName };
+ipcMain.handle('set-printers-config', async (event, { mainPrinter, colorPrinter }) => {
+  if (mainPrinter !== undefined) mainPrinterName = mainPrinter;
+  if (colorPrinter !== undefined) colorPrinterName = colorPrinter;
+  return { success: true, mainPrinter: mainPrinterName, colorPrinter: colorPrinterName };
 });
 
 // 3. Test Print
 ipcMain.handle('test-print', async (event, { printerName }) => {
-  const targetPrinter = printerName || selectedPrinterName;
+  const targetPrinter = printerName;
   if (!targetPrinter) {
     throw new Error("No printer selected. Please select a Windows printer in Settings.");
   }
@@ -203,7 +231,7 @@ ipcMain.handle('test-print', async (event, { printerName }) => {
     </head>
     <body>
       <div class="header">
-        <h1>PrintAlfa — Windows Print Agent Test Page</h1>
+        <h1>PrintAlfa — Windows Print Client Test Page</h1>
         <p>Real Physical Printing Verification</p>
       </div>
       <div class="details">
@@ -214,27 +242,35 @@ ipcMain.handle('test-print', async (event, { printerName }) => {
       </div>
       <div class="box">
         <span class="success-badge">PASSED</span>
-        <p>✓ The PrintAlfa Windows Print Agent successfully routed this test document through the local Windows Print Spooler to your physical printer.</p>
+        <p>✓ The PrintAlfa Windows Print Client successfully routed this test document through the local Windows Print Spooler to your physical printer.</p>
       </div>
     </body>
     </html>
   `;
 
   try {
-    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(testHtml)}`);
-    
     return await new Promise((resolve, reject) => {
-      printWindow.webContents.print({
-        silent: true,
-        deviceName: targetPrinter,
-        printBackground: true
-      }, (success, errorType) => {
+      printWindow.webContents.on('did-finish-load', () => {
+        setTimeout(() => {
+          if (printWindow.isDestroyed()) return;
+          printWindow.webContents.print({
+            silent: true,
+            deviceName: targetPrinter,
+            printBackground: true
+          }, (success, errorType) => {
+            if (!printWindow.isDestroyed()) printWindow.destroy();
+            if (!success) {
+              reject(new Error(`Print job cancelled or failed by Windows spooler. Reason: ${errorType || 'Unknown error'}`));
+            } else {
+              resolve({ success: true, message: `Test page sent to ${targetPrinter}` });
+            }
+          });
+        }, 500);
+      });
+
+      printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(testHtml)}`).catch(err => {
         if (!printWindow.isDestroyed()) printWindow.destroy();
-        if (!success) {
-          reject(new Error(`Printing failed: ${errorType || 'Windows print spooler error'}`));
-        } else {
-          resolve({ success: true, message: `Test page sent to ${targetPrinter}` });
-        }
+        reject(err);
       });
     });
   } catch (err) {
@@ -244,10 +280,12 @@ ipcMain.handle('test-print', async (event, { printerName }) => {
 });
 
 // 4. Print actual customer document
-ipcMain.handle('print-document', async (event, { base64Data, originalFileName, contentType, printSettings, printerName }) => {
-  const targetPrinter = printerName || selectedPrinterName;
+ipcMain.handle('print-document', async (event, { base64Data, originalFileName, contentType, printSettings }) => {
+  const isColorOrPhoto = printSettings?.colorMode === 'COLOR' || printSettings?.printType === 'PASSPORT_PHOTO' || printSettings?.printType === 'PHOTO';
+  const targetPrinter = isColorOrPhoto ? colorPrinterName : mainPrinterName;
+
   if (!targetPrinter) {
-    throw new Error("No printer selected. Please configure a Windows printer in Settings.");
+    throw new Error(isColorOrPhoto ? "Color/Photo printer unavailable." : "Main printer unavailable.");
   }
 
   if (!base64Data) {
@@ -266,7 +304,8 @@ ipcMain.handle('print-document', async (event, { base64Data, originalFileName, c
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false
+      webSecurity: true,
+      allowRunningInsecureContent: false
     }
   });
 
@@ -292,38 +331,50 @@ ipcMain.handle('print-document', async (event, { base64Data, originalFileName, c
   }
 
   try {
-    if (contentType === 'application/pdf' || ext === '.pdf') {
-      await printWindow.loadURL(`file://${tempFilePath.replace(/\\/g, '/')}`);
-    } else if (contentType && contentType.startsWith('image/')) {
-      const imgHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head><style>body { margin: 0; display: flex; justify-content: center; align-items: center; } img { max-width: 100%; height: auto; }</style></head>
-        <body><img src="file://${tempFilePath.replace(/\\/g, '/')}" /></body>
-        </html>
-      `;
-      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(imgHtml)}`);
-    } else {
-      await printWindow.loadURL(`file://${tempFilePath.replace(/\\/g, '/')}`);
-    }
-
     return await new Promise((resolve, reject) => {
-      setTimeout(() => {
-        printWindow.webContents.print(printOptions, (success, errorType) => {
-          try {
-            if (!printWindow.isDestroyed()) printWindow.destroy();
-            if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-          } catch (e) {
-            console.warn("Spool cleanup warning:", e);
-          }
+      printWindow.webContents.on('did-finish-load', () => {
+        setTimeout(() => {
+          if (printWindow.isDestroyed()) return;
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            try {
+              if (!printWindow.isDestroyed()) printWindow.destroy();
+              if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+            } catch (e) {
+              console.warn("Spool cleanup warning:", e);
+            }
 
-          if (!success) {
-            reject(new Error(`Windows Print Spooler error: ${errorType || 'Failed to submit document to printer'}`));
-          } else {
-            resolve({ success: true, message: `Document printed to ${targetPrinter}` });
-          }
-        });
-      }, 800);
+            if (!success) {
+              reject(new Error(`Print job cancelled by Windows spooler. Reason: ${errorType || 'Unknown error'}`));
+            } else {
+              resolve({ success: true, message: `Document printed to ${targetPrinter}` });
+            }
+          });
+        }, 800);
+      });
+
+      let loadPromise;
+      if (contentType === 'application/pdf' || ext === '.pdf') {
+        loadPromise = printWindow.loadURL(`file://${tempFilePath.replace(/\\/g, '/')}`);
+      } else if (contentType && contentType.startsWith('image/')) {
+        const imgHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head><style>body { margin: 0; display: flex; justify-content: center; align-items: center; } img { max-width: 100%; height: auto; }</style></head>
+          <body><img src="file://${tempFilePath.replace(/\\/g, '/')}" /></body>
+          </html>
+        `;
+        loadPromise = printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(imgHtml)}`);
+      } else {
+        loadPromise = printWindow.loadURL(`file://${tempFilePath.replace(/\\/g, '/')}`);
+      }
+
+      loadPromise.catch(err => {
+        try {
+          if (!printWindow.isDestroyed()) printWindow.destroy();
+          if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+        } catch (e) {}
+        reject(err);
+      });
     });
   } catch (err) {
     try {
@@ -365,7 +416,9 @@ ipcMain.on('show-order-notification', (event, { order }) => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: path.join(__dirname, 'preload.cjs'),
+      webSecurity: true,
+      allowRunningInsecureContent: false
     }
   });
 

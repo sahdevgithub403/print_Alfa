@@ -14,7 +14,7 @@ import { SettingsView } from "../components/SettingsView";
 import { Inbox, AlertTriangle, Search } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { printAgentWorker } from "../services/printAgentWorker";
+import { printClient } from "../services/printClient";
 import { Activity } from "lucide-react";
 
 export const AdminDashboardPage = ({ user, onLogout }) => {
@@ -26,17 +26,17 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   
-  const [agentState, setAgentState] = useState(printAgentWorker.getState());
+  const [clientState, setClientState] = useState(printClient.getState());
   const notifiedOrders = React.useRef(new Set());
+  const ordersRef = React.useRef([]); // To access current orders in callbacks
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
 
   useEffect(() => {
     fetchOrders();
-    // Start background Print Agent worker
-    printAgentWorker.start();
-    const unsubscribeAgent = printAgentWorker.subscribe(setAgentState);
+    // Initialize Print Client
+    const unsubscribeClient = printClient.subscribe(setClientState);
 
     const interval = setInterval(() => {
       fetchOrders(true);
@@ -51,8 +51,15 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
       }
     }, 10000);
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
-    const baseUrl = API_BASE_URL.replace("/api", "");
+    const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8085";
+    let baseUrl = API_URL;
+    if (baseUrl.endsWith("/api")) {
+      baseUrl = baseUrl.slice(0, -4);
+    }
+    // Default to absolute backend URL to prevent Vite proxy 404s
+    if (!baseUrl || baseUrl.startsWith("/")) {
+      baseUrl = "http://localhost:8085";
+    }
     const wsUrl = `${baseUrl}/ws-admin`;
 
     const token = localStorage.getItem("admin_jwt_token");
@@ -85,8 +92,7 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
                   if (window.electronAPI?.showOrderNotification) {
                     window.electronAPI.showOrderNotification(order);
                   } else {
-                    // Fallback to auto-print for web browser
-                    printAgentWorker.processQueue();
+                    console.log("New print request received. Check order queue.");
                   }
                 }
               }
@@ -107,13 +113,21 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     if (window.electronAPI?.onOrderActionResult) {
       window.electronAPI.onOrderActionResult(async ({ orderId, action }) => {
         console.log(`Received action ${action} for order ${orderId}`);
-        if (action === 'ACCEPT') {
+        if (action === 'ACCEPT_AND_PRINT') {
           try {
-            await updateOrderPrintStatus(orderId, 'QUEUED');
+            await updateOrderPrintStatus(orderId, 'PRINTING');
             fetchOrders(true);
-            printAgentWorker.processQueue();
+            
+            // We need the full order object to print
+            const fullOrder = ordersRef.current.find(o => o.id === orderId) || { id: orderId, orderNumber: "Unknown" };
+            
+            await printClient.executePrintJob(fullOrder);
+            await updateOrderPrintStatus(orderId, 'COMPLETED');
+            fetchOrders(true);
           } catch (e) {
-            console.error("Failed to accept order:", e);
+            console.error("Failed to print order:", e);
+            await updateOrderPrintStatus(orderId, 'FAILED');
+            fetchOrders(true);
           }
         } else if (action === 'DECLINE') {
           try {
@@ -130,8 +144,7 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
       clearInterval(interval);
       clearInterval(heartbeatInterval);
       stompClient.deactivate();
-      printAgentWorker.stop();
-      unsubscribeAgent();
+      unsubscribeClient();
     };
   }, [user]);
 
@@ -143,6 +156,7 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     try {
       const data = await getAdminOrders();
       setOrders(data || []);
+      ordersRef.current = data || [];
     } catch (err) {
       console.error("Failed to fetch orders:", err);
       if (!isBackground) {
@@ -256,23 +270,6 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
                       {activeTab === "HISTORY" ? "Order History" : "Orders Queue"}
                     </h1>
                     
-                    {/* Background Agent Status Indicator */}
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-[#E2E2E2] rounded-full shadow-sm text-sm font-medium w-fit">
-                      {agentState.isRunning ? (
-                        <>
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                          </span>
-                          <span className="text-gray-700">Agent Connected</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                          <span className="text-gray-700">Agent Disconnected</span>
-                        </>
-                      )}
-                    </div>
                   </div>
                   <p className="text-base text-[#6B6B6B] mt-1 font-medium">
                     {activeTab === "HISTORY"

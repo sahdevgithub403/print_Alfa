@@ -126,6 +126,8 @@ export const App = () => {
              const userData = JSON.parse(localStorage.getItem("admin_user_data") || "{}");
              userData.shopSetupComplete = true;
              userData.shopId = shopProfile.id;
+             userData.shopName = shopProfile.name;
+             userData.shopSlug = shopProfile.slug;
              localStorage.setItem("admin_user_data", JSON.stringify(userData));
              setUser(userData);
           }).catch(() => {

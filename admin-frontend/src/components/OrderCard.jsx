@@ -178,7 +178,7 @@ export const OrderCard = ({
             {/* Automated status display replaces manual action buttons */}
             {order.printStatus === "PENDING" && (
               <span className="text-sm font-semibold text-neutral-500 flex items-center gap-1 px-3 py-1 bg-neutral-50 rounded-lg border border-neutral-200">
-                <span>Waiting for Agent</span>
+                <span>Waiting to Print</span>
               </span>
             )}
 
