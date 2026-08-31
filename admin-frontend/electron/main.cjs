@@ -84,7 +84,7 @@ function createWindow() {
       allowRunningInsecureContent: false,
       backgroundThrottling: false,
     },
-    icon: path.join(__dirname, "icon.png"),
+    icon: path.join(__dirname, "printalfa.ico"),
   });
 
   const isDev = process.env.NODE_ENV === "development";
@@ -142,7 +142,7 @@ app.whenReady().then(() => {
       "script-src 'self'; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: file: https://api.qrserver.com; " +
+      "img-src 'self' data: blob: file: https://api.qrserver.com; " +
       "connect-src 'self' https://printalfa-production.up.railway.app wss://printalfa-production.up.railway.app;";
     if (isDev) {
       csp =
@@ -150,7 +150,7 @@ app.whenReady().then(() => {
         "script-src 'self' 'unsafe-inline' http://localhost:5174; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://localhost:5174; " +
         "font-src 'self' https://fonts.gstatic.com http://localhost:5174; " +
-        "img-src 'self' data: file: https://api.qrserver.com http://localhost:5174; " +
+        "img-src 'self' data: blob: file: https://api.qrserver.com http://localhost:5174; " +
         "connect-src 'self' http://localhost:8085 ws://localhost:8085 http://localhost:5174 ws://localhost:5174;";
     }
     callback({

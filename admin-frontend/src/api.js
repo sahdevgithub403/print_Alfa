@@ -33,10 +33,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("admin_jwt_token");
-      localStorage.removeItem("admin_user_data");
-      window.location.reload();
+      console.error("AUTH 401:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        response: error.response?.data,
+      });
     }
+
     return Promise.reject(error);
   },
 );
