@@ -145,3 +145,27 @@ export const getDocumentPreviewUrl = async (documentId, contentType) => {
     new Blob([response.data], { type: contentType }),
   );
 };
+
+export const getAdminDocuments = async ({ search = "", type = "ALL", sort = "NEWEST", page = 0, size = 25 } = {}) => {
+  const response = await api.get("/admin/documents", {
+    params: { search, type, sort, page, size },
+  });
+  return response.data.data;
+};
+
+export const deleteAdminDocument = async (documentId) => {
+  const response = await api.delete(`/admin/documents/${documentId}`);
+  return response.data;
+};
+
+export const deleteAdminDocumentsBulk = async (documentIds) => {
+  const response = await api.delete("/admin/documents/bulk", {
+    data: { documentIds },
+  });
+  return response.data.data;
+};
+
+export const deleteAllAdminDocuments = async () => {
+  const response = await api.delete("/admin/documents/all");
+  return response.data.data;
+};

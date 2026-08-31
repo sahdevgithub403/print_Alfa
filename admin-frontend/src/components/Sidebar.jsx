@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Store,
   ChevronRight,
+  FolderOpen,
 } from "lucide-react";
 
 export const Sidebar = ({
@@ -39,6 +40,11 @@ export const Sidebar = ({
       id: "HISTORY",
       label: "Order History",
       icon: History,
+    },
+    {
+      id: "FILES",
+      label: "Files Storage",
+      icon: FolderOpen,
     },
     {
       id: "PRICING",

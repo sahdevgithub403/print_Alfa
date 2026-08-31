@@ -11,6 +11,7 @@ import { OrderDetailModal } from "../components/OrderDetailModal";
 import { PricingSettings } from "../components/PricingSettings";
 import { QRCodeModal } from "../components/QRCodeModal";
 import { SettingsView } from "../components/SettingsView";
+import { FileManagementView } from "../components/FileManagementView";
 import { Inbox, AlertTriangle, Search } from "lucide-react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
@@ -556,6 +557,9 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
               )}
             </div>
           )}
+
+          {/* FILES STORAGE TAB */}
+          {activeTab === "FILES" && <FileManagementView user={user} />}
 
           {/* PRICING RATES TAB */}
           {activeTab === "PRICING" && <PricingSettings />}

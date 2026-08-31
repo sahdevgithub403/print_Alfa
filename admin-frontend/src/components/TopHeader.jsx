@@ -16,6 +16,8 @@ export const TopHeader = ({
         return "Orders Queue";
       case "HISTORY":
         return "Order History";
+      case "FILES":
+        return "Shop File Storage";
       case "PRICING":
         return "Print Pricing Rates";
       case "QR":
