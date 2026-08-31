@@ -21,6 +21,7 @@ export const Sidebar = ({
   pendingCount,
   printingCount,
   isRefreshing,
+  wsStatus,
   onRefresh,
   onOpenQR,
 }) => {
@@ -50,6 +51,46 @@ export const Sidebar = ({
       icon: Settings,
     },
   ];
+
+  const renderConnectionBadge = () => {
+    switch (wsStatus) {
+      case "CONNECTED":
+        return (
+          <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Sync Active
+          </span>
+        );
+      case "CONNECTING":
+        return (
+          <span className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            Connecting...
+          </span>
+        );
+      case "RECONNECTING":
+        return (
+          <span className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            Reconnecting...
+          </span>
+        );
+      case "DISCONNECTED":
+        return (
+          <span className="text-xs font-semibold text-rose-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            Disconnected
+          </span>
+        );
+      default:
+        return (
+          <span className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-neutral-400" />
+            Sync Ready
+          </span>
+        );
+    }
+  };
 
   return (
     <>
@@ -274,12 +315,9 @@ export const Sidebar = ({
 
         {/* Footer Admin User Card & Logout */}
         <div className="pt-6 border-t border-[#E2E2E2] space-y-4">
-          {/* Refresh Status Row */}
+          {/* Live Sync Status Row */}
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-[#6B6B6B] font-medium flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Auto-sync active
-            </span>
+            {renderConnectionBadge()}
             <button
               onClick={onRefresh}
               disabled={isRefreshing}

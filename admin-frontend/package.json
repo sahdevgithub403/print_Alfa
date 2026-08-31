@@ -45,7 +45,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "electron/assets/printalfa.ico"
+      "icon": "electron/printalfa.ico"
     },
     "nsis": {
       "oneClick": false,

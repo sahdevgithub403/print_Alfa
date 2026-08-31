@@ -125,8 +125,16 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
         configuration.setAllowCredentials(true);
+
+        CorsConfiguration wsConfiguration = new CorsConfiguration();
+        wsConfiguration.setAllowedOriginPatterns(List.of("*"));
+        wsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        wsConfiguration.setAllowedHeaders(List.of("*"));
+        wsConfiguration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        wsConfiguration.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/ws-admin/**", wsConfiguration);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }

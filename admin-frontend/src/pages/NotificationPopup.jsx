@@ -8,12 +8,21 @@ export const NotificationPopup = () => {
   useEffect(() => {
     try {
       const hash = window.location.hash;
-      const paramStr = hash.split("?order=")[1];
-      if (paramStr) {
-        setOrder(JSON.parse(decodeURIComponent(paramStr)));
+      console.log("[PrintAlfa Popup] hash:", hash);
+      const paramIndex = hash.indexOf("?order=");
+
+      if (paramIndex !== -1) {
+        const paramStr = hash.substring(paramIndex + "?order=".length);
+        const decoded = decodeURIComponent(paramStr);
+        const parsedOrder = JSON.parse(decoded);
+        console.log("[PrintAlfa Popup] parsed order:", parsedOrder);
+
+        setOrder(parsedOrder);
+      } else {
+        console.warn("[PrintAlfa Popup] No ?order= found in hash:", hash);
       }
-    } catch (e) {
-      console.error("Failed to parse order from URL", e);
+    } catch (error) {
+      console.error("[PrintAlfa Popup] Failed to parse order from notification URL:", error);
     }
   }, []);
 

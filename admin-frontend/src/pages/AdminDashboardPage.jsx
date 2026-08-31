@@ -27,7 +27,9 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
   const [error, setError] = useState(null);
   
   const [clientState, setClientState] = useState(printClient.getState());
+  const [wsStatus, setWsStatus] = useState("CONNECTING"); // "CONNECTED" | "CONNECTING" | "RECONNECTING" | "DISCONNECTED"
   const notifiedOrders = React.useRef(new Set());
+  const incomingOrdersCache = React.useRef(new Map());
   const ordersRef = React.useRef([]); // To access current orders in callbacks
 
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -60,40 +62,84 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
     if (!baseUrl || baseUrl.startsWith("/")) {
       baseUrl = "http://localhost:8085";
     }
-    const wsUrl = `${baseUrl}/ws-admin`;
+
+    const isSecure = baseUrl.startsWith("https://");
+    const wsProtocol = isSecure ? "wss://" : "ws://";
+    const hostAndPort = baseUrl.replace(/^https?:\/\//, "");
+    const wsUrl = `${wsProtocol}${hostAndPort}/ws-admin`;
 
     const token = localStorage.getItem("admin_jwt_token");
+    setWsStatus("CONNECTING");
+    console.log(`[PrintAlfa WS] Connecting to ${wsUrl}...`);
+
+    let currentReconnectDelay = 2000;
+    const maxReconnectDelay = 20000;
+
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),
+      brokerURL: wsUrl,
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      reconnectDelay: 2000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      beforeConnect: () => {
+        const freshToken = localStorage.getItem("admin_jwt_token");
+        if (freshToken) {
+          stompClient.connectHeaders = { Authorization: `Bearer ${freshToken}` };
+        }
+      },
     });
 
     stompClient.onConnect = (frame) => {
-      console.log("Connected: " + frame);
+      console.log("[PrintAlfa WS] STOMP CONNECTED:", frame);
+      setWsStatus("CONNECTED");
+      currentReconnectDelay = 2000;
+      stompClient.reconnectDelay = 2000;
+
       const shopId = user?.shopId;
       if (shopId) {
+        console.log(`[PrintAlfa WS] Subscription active on /topic/admin/shop/${shopId}/orders`);
         stompClient.subscribe(
           `/topic/admin/shop/${shopId}/orders`,
           (message) => {
             if (message.body) {
-              const event = JSON.parse(message.body);
-              console.log("Received real-time event:", event);
+              let event;
+              try {
+                event = JSON.parse(message.body);
+              } catch (parseErr) {
+                console.error("[PrintAlfa WS] Failed to parse message body:", parseErr);
+                return;
+              }
+
+              console.log("[PrintAlfa] REALTIME EVENT RECEIVED:", event);
+              const eventType = event?.type || event?.eventType || "UNKNOWN";
+              const order = event?.order || event?.data || event?.payload || (event?.id ? event : null);
+              const orderId = order?.id || event?.orderId || event?.id;
+
+              console.log("[PrintAlfa] EVENT TYPE:", eventType);
+              console.log("[PrintAlfa] ORDER ID:", orderId);
+
               // Re-fetch orders silently to update the list
               fetchOrders(true);
 
-              // Instantly trigger physical print worker on new print requests
-              if (event.type === "NEW_PRINT_REQUEST" || event.type === "ORDER_CREATED") {
-                const order = event.order;
-                if (order && !notifiedOrders.current.has(order.id)) {
-                  notifiedOrders.current.add(order.id);
+              // Instantly trigger physical print notification on new print requests
+              const isNewPrintEvent =
+                eventType === "NEW_PRINT_REQUEST" ||
+                eventType === "ORDER_CREATED" ||
+                (order && order.printStatus === "PENDING" && (!order.paymentStatus || order.paymentStatus === "PAID" || order.paymentMethod === "PAY_AT_SHOP"));
+
+              if (isNewPrintEvent && order && orderId) {
+                if (!notifiedOrders.current.has(orderId)) {
+                  notifiedOrders.current.add(orderId);
+                  incomingOrdersCache.current.set(orderId, order);
+
+                  console.log("[PrintAlfa] Triggering showOrderNotification for order:", orderId);
                   if (window.electronAPI?.showOrderNotification) {
                     window.electronAPI.showOrderNotification(order);
                   } else {
-                    console.log("New print request received. Check order queue.");
+                    console.log("[PrintAlfa] New print request received in web mode. Check order queue.");
                   }
+                } else {
+                  console.log("[PrintAlfa] Order already notified:", orderId);
                 }
               }
             }
@@ -102,9 +148,27 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
       }
     };
 
+    stompClient.onDisconnect = () => {
+      console.log("[PrintAlfa WS] Disconnected");
+      setWsStatus("DISCONNECTED");
+    };
+
+    stompClient.onWebSocketClose = (evt) => {
+      console.log(`[PrintAlfa WS] WebSocket closed (code ${evt.code}). Reconnecting in ${currentReconnectDelay} ms...`);
+      setWsStatus("RECONNECTING");
+      currentReconnectDelay = Math.min(currentReconnectDelay * 1.5, maxReconnectDelay);
+      stompClient.reconnectDelay = currentReconnectDelay;
+    };
+
+    stompClient.onWebSocketError = (error) => {
+      console.error("[PrintAlfa WS] Error:", error);
+      setWsStatus("RECONNECTING");
+    };
+
     stompClient.onStompError = (frame) => {
-      console.error("Broker reported error: " + frame.headers["message"]);
-      console.error("Additional details: " + frame.body);
+      console.error("[PrintAlfa WS] STOMP error: " + frame.headers["message"]);
+      console.error("[PrintAlfa WS] Details: " + frame.body);
+      setWsStatus("DISCONNECTED");
     };
 
     stompClient.activate();
@@ -118,8 +182,23 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
             await updateOrderPrintStatus(orderId, 'PRINTING');
             fetchOrders(true);
             
-            // We need the full order object to print
-            const fullOrder = ordersRef.current.find(o => o.id === orderId) || { id: orderId, orderNumber: "Unknown" };
+            // Resolve full order in priority: 1. incomingOrdersCache, 2. ordersRef.current, 3. fresh fetch
+            let fullOrder = incomingOrdersCache.current.get(orderId) || ordersRef.current.find(o => o.id === orderId);
+
+            if (!fullOrder || (!fullOrder.items && !fullOrder.document)) {
+              try {
+                const freshOrders = await getAdminOrders();
+                ordersRef.current = freshOrders || [];
+                setOrders(freshOrders || []);
+                fullOrder = freshOrders.find(o => o.id === orderId) || fullOrder;
+              } catch (fetchErr) {
+                console.error("Failed to fetch fresh order before printing:", fetchErr);
+              }
+            }
+
+            if (!fullOrder) {
+              fullOrder = { id: orderId, orderNumber: "Unknown" };
+            }
             
             await printClient.executePrintJob(fullOrder);
             await updateOrderPrintStatus(orderId, 'COMPLETED');
@@ -252,6 +331,7 @@ export const AdminDashboardPage = ({ user, onLogout }) => {
         pendingCount={pendingCount}
         printingCount={printingCount}
         isRefreshing={isRefreshing}
+        wsStatus={wsStatus}
         onRefresh={() => fetchOrders(false)}
         onOpenQR={() => setShowQRModal(true)}
       />

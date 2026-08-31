@@ -91,6 +91,23 @@ public class FileStorageService {
         return documentRepository.save(doc);
     }
 
+    public boolean deletePhysicalFile(String storedFileName) {
+        if (storedFileName == null || storedFileName.contains("..") || storedFileName.contains("/") || storedFileName.contains("\\")) {
+            throw new IllegalArgumentException("Invalid stored file name for deletion");
+        }
+        try {
+            Path filePath = this.fileStorageLocation.resolve(storedFileName).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation)) {
+                throw new SecurityException("Cannot delete file outside upload directory");
+            }
+            return Files.deleteIfExists(filePath);
+        } catch (IOException ex) {
+            org.slf4j.LoggerFactory.getLogger(FileStorageService.class)
+                    .warn("Failed to delete physical file {}: {}", storedFileName, ex.getMessage());
+            return false;
+        }
+    }
+
     public Resource loadFileAsResource(String storedFileName) {
         try {
             if (storedFileName == null || storedFileName.contains("..") || storedFileName.contains("/") || storedFileName.contains("\\")) {

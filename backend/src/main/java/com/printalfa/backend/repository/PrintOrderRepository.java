@@ -28,4 +28,7 @@ public interface PrintOrderRepository extends JpaRepository<PrintOrder, UUID> {
 
     @Query("SELECT COUNT(p) FROM PrintOrder p WHERE p.shop.id = :shopId AND p.printStatus = :status")
     long countByShopIdAndPrintStatus(@Param("shopId") UUID shopId, @Param("status") PrintStatus status);
+
+    @Query("SELECT DISTINCT p FROM PrintOrder p LEFT JOIN p.items i WHERE p.shop.id = :shopId AND (p.document.id = :documentId OR i.document.id = :documentId)")
+    List<PrintOrder> findOrdersByShopIdAndDocumentId(@Param("shopId") UUID shopId, @Param("documentId") UUID documentId);
 }

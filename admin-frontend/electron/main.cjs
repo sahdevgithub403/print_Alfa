@@ -476,9 +476,21 @@ ipcMain.on("show-notification", (event, { title, body }) => {
   }).show();
 });
 
-ipcMain.on("show-order-notification", (event, { order }) => {
+ipcMain.on("show-order-notification", (event, payload) => {
+  const order = payload?.order || payload;
+  console.log("[PrintAlfa IPC] show-order-notification received");
+  console.log("[PrintAlfa IPC] order:", order);
+
+  if (!order) {
+    console.error("[PrintAlfa IPC] No order payload provided to show-order-notification");
+    return;
+  }
+
   if (notificationWindow) {
-    notificationWindow.destroy();
+    try {
+      notificationWindow.destroy();
+    } catch (e) {}
+    notificationWindow = null;
   }
 
   const { screen } = require("electron");
@@ -487,16 +499,19 @@ ipcMain.on("show-order-notification", (event, { order }) => {
   const popupWidth = 360;
   const popupHeight = 320;
 
+  console.log("[PrintAlfa IPC] creating notification window");
   notificationWindow = new BrowserWindow({
     width: popupWidth,
     height: popupHeight,
     x: width - popupWidth - 20,
     y: height - popupHeight - 20,
     frame: false,
-    transparent: true,
+    transparent: false,
+    backgroundColor: "#0f172a",
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -506,10 +521,31 @@ ipcMain.on("show-order-notification", (event, { order }) => {
     },
   });
 
+  notificationWindow.setAlwaysOnTop(true, "screen-saver");
+
   const isDev = process.env.NODE_ENV === "development";
+  const encodedOrder = encodeURIComponent(JSON.stringify(order));
   const url = isDev
-    ? `http://localhost:5174/#/notification?order=\${encodeURIComponent(JSON.stringify(order))}`
-    : `file://\${path.join(__dirname, '../dist/index.html')}#/notification?order=\${encodeURIComponent(JSON.stringify(order))}`;
+    ? `http://localhost:5174/#/notification?order=${encodedOrder}`
+    : `file://${path.join(__dirname, "../dist/index.html")}#/notification?order=${encodedOrder}`;
+
+  console.log("[PrintAlfa IPC] notification URL:", url);
+
+  notificationWindow.webContents.on("did-finish-load", () => {
+    console.log("[PrintAlfa IPC] notification window loaded");
+    if (notificationWindow && !notificationWindow.isDestroyed()) {
+      notificationWindow.show();
+      notificationWindow.focus();
+    }
+  });
+
+  notificationWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error(
+      "[PrintAlfa IPC] notification window failed:",
+      errorCode,
+      errorDescription
+    );
+  });
 
   notificationWindow.loadURL(url);
 
