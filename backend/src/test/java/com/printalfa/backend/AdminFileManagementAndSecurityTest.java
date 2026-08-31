@@ -128,10 +128,8 @@ public class AdminFileManagementAndSecurityTest {
         orderCompleted.setPaymentMethod(PaymentMethod.ONLINE);
         orderCompleted.setPaymentStatus(PaymentStatus.PAID);
         orderCompleted.setPrintStatus(PrintStatus.COMPLETED);
-        orderCompleted = printOrderRepository.save(orderCompleted);
 
         OrderItem item1 = new OrderItem();
-        item1.setOrder(orderCompleted);
         item1.setDocument(shopADoc1);
         item1.setPrintType(PrintType.PRINT);
         item1.setColorMode(ColorMode.BW);
@@ -143,7 +141,8 @@ public class AdminFileManagementAndSecurityTest {
         item1.setUnitPrice(new BigDecimal("10.00"));
         item1.setItemPrice(new BigDecimal("10.00"));
         item1.setPrintStatus(PrintStatus.COMPLETED);
-        orderItemRepository.save(item1);
+        orderCompleted.addItem(item1);
+        printOrderRepository.save(orderCompleted);
 
         // Shop A Document Active (Pending order - must NOT be deleted)
         shopADocActive = documentRepository.save(new Document("doc_active.pdf", "test_doc_active.pdf", "application/pdf", 2048, 2, fActive.getAbsolutePath()));
@@ -155,10 +154,8 @@ public class AdminFileManagementAndSecurityTest {
         orderPending.setPaymentMethod(PaymentMethod.PAY_AT_SHOP);
         orderPending.setPaymentStatus(PaymentStatus.PENDING);
         orderPending.setPrintStatus(PrintStatus.PENDING);
-        orderPending = printOrderRepository.save(orderPending);
 
         OrderItem itemActive = new OrderItem();
-        itemActive.setOrder(orderPending);
         itemActive.setDocument(shopADocActive);
         itemActive.setPrintType(PrintType.PRINT);
         itemActive.setColorMode(ColorMode.BW);
@@ -170,7 +167,8 @@ public class AdminFileManagementAndSecurityTest {
         itemActive.setUnitPrice(new BigDecimal("20.00"));
         itemActive.setItemPrice(new BigDecimal("20.00"));
         itemActive.setPrintStatus(PrintStatus.PENDING);
-        orderItemRepository.save(itemActive);
+        orderPending.addItem(itemActive);
+        printOrderRepository.save(orderPending);
 
         // Shop B Document
         shopBDoc = documentRepository.save(new Document("doc_b.pdf", "test_doc_b.pdf", "application/pdf", 1024, 1, fB.getAbsolutePath()));
@@ -182,10 +180,8 @@ public class AdminFileManagementAndSecurityTest {
         orderB.setPaymentMethod(PaymentMethod.PAY_AT_SHOP);
         orderB.setPaymentStatus(PaymentStatus.PENDING);
         orderB.setPrintStatus(PrintStatus.PENDING);
-        orderB = printOrderRepository.save(orderB);
 
         OrderItem itemB = new OrderItem();
-        itemB.setOrder(orderB);
         itemB.setDocument(shopBDoc);
         itemB.setPrintType(PrintType.PRINT);
         itemB.setColorMode(ColorMode.BW);
@@ -197,7 +193,8 @@ public class AdminFileManagementAndSecurityTest {
         itemB.setUnitPrice(new BigDecimal("15.00"));
         itemB.setItemPrice(new BigDecimal("15.00"));
         itemB.setPrintStatus(PrintStatus.PENDING);
-        orderItemRepository.save(itemB);
+        orderB.addItem(itemB);
+        printOrderRepository.save(orderB);
     }
 
     @Test
