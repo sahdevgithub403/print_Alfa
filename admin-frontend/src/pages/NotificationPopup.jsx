@@ -39,7 +39,7 @@ export const NotificationPopup = () => {
   return (
     <div className="h-screen w-screen bg-slate-900 text-white flex flex-col overflow-hidden border border-slate-700 shadow-2xl" style={{ WebkitAppRegion: 'drag' }}>
       <div className="bg-indigo-600 px-4 py-3 flex items-center gap-2">
-        <Printer className="w-5 h-5 text-white" />
+          <Printer className="w-5 h-5 text-white" />
         <h3 className="font-semibold text-white tracking-wide">NEW PRINT ORDER</h3>
       </div>
       
